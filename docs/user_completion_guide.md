@@ -2,7 +2,7 @@
 
 This guide is the user-side completion checklist for The Witness after the Rust code has been built and tested.
 
-Important honesty note: the Unsloth model is not fine-tuned or uploaded until you run the Google Colab notebook and publish or copy the trained artifact. Current status is: Colab notebook and pipeline ready, training/upload pending.
+Important honesty note: the fine-tuned judge model is not trained or uploaded until you run the Google Colab TPU/GPU notebook and publish or copy the trained artifact. Current status is: Colab notebook and pipeline ready, training/upload pending.
 
 ## 1. Current project status
 
@@ -188,7 +188,7 @@ Expected:
 
 ## 9. Step 8 — Fine-tune the model on Google Colab
 
-Open this notebook in Google Colab with a GPU runtime:
+Open this notebook in Google Colab with a TPU runtime, or GPU fallback if TPU packages fail:
 
 ```text
 training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
@@ -222,7 +222,7 @@ python3 training/scripts/validate_dataset.py
 wc -c training/dataset/witness_judge_train.jsonl training/dataset/witness_judge_val.jsonl
 ```
 
-For a quick Colab smoke test, set notebook environment variables:
+For a quick Colab TPU smoke test, set notebook environment variables:
 
 ```bash
 WITNESS_TRAIN_LIMIT=200
@@ -240,6 +240,7 @@ In the E2B notebook, verify or edit:
 
 ```python
 BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")
+ACCELERATOR = "tpu"
 OUTPUT_MODEL_NAME = "witness-gemma4-e2b-judge"
 OUTPUT_DIR = "/content/witness_outputs/witness-gemma4-e2b-judge"
 ```

@@ -63,4 +63,4 @@ Limitations:
 - This is synthetic data for hackathon fine-tuning.
 - It is not a clinical, legal, financial, emergency-response, or software-security benchmark.
 - Review and expand with expert-labeled examples before production use.
-- Do not claim the Unsloth model is trained until the notebook is actually run and the trained artifact is uploaded.
+- Do not claim the fine-tuned judge model is trained until the Colab TPU/GPU notebook is actually run and the trained artifact is uploaded or copied.

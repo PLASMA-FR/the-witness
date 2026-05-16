@@ -39,7 +39,7 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         "Default backend: Ollama".into(),
         "Default model: gemma4:e2b".into(),
         "Strong model: gemma4:e4b".into(),
-        "Fine-tuning runtime: Google Colab GPU (recommended)".into(),
+        "Fine-tuning runtime: Google Colab TPU (recommended), GPU/Unsloth fallback".into(),
         "Optional Kaggle artifact slug: plasmafr/witness-gemma4-e2b-judge".into(),
         "Fallback: human_review".into(),
         pass(&format!("OS detected: {} {}", hw.os, hw.arch)),
@@ -179,7 +179,7 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         } else {
             warn(
                 "Fine-tuning notebook missing",
-                "Only required when developing or training the Unsloth judge from source.",
+                "Only required when developing or training the TPU/GPU fine-tuned judge from source.",
             )
         },
         if root.join("models/models.toml").exists() {
