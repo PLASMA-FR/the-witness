@@ -18,7 +18,7 @@ pub fn choices() -> Vec<ModelChoice> {
         },
         ModelChoice {
             label: "Fine-tuned Witness Judge",
-            description: "Fine-tuned in Google Colab T4 GPU with Unsloth; uses GPU VRAM plus system RAM; copy local path, Hugging Face Hub, or optional Kaggle download",
+            description: "Fine-tuned in one-cell Google Colab T4 GPU with Unsloth; uses GPU VRAM plus system RAM and uploads to Hugging Face Hub",
             default_name: "witness-gemma4-e2b-judge",
         },
         ModelChoice {

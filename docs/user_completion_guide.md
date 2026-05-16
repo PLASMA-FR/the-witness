@@ -188,7 +188,7 @@ Expected:
 
 ## 9. Step 8 — Fine-tune the model on Google Colab
 
-Open this notebook in Google Colab with a T4 GPU runtime:
+Open this one-cell notebook in Google Colab with a T4 GPU runtime:
 
 ```text
 training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
@@ -200,7 +200,7 @@ Optional stronger model notebook:
 training/notebooks/finetune_gemma4_e4b_unsloth.ipynb
 ```
 
-The Colab setup cell clones the repo and uses these dataset files automatically. If you prefer manual upload, upload:
+The single Colab cell clones the repo and uses these dataset files automatically. If you prefer manual upload, upload:
 
 ```text
 training/dataset/witness_judge_train.jsonl
@@ -222,38 +222,42 @@ python3 training/scripts/validate_dataset.py
 wc -c training/dataset/witness_judge_train.jsonl training/dataset/witness_judge_val.jsonl
 ```
 
-For a quick Colab T4 GPU smoke test, set notebook environment variables:
+The one-cell notebook is already optimized for one T4 GPU with about 15 GiB VRAM and about 12 GiB system RAM. It uses these slower, memory-safe defaults:
 
 ```bash
-WITNESS_TRAIN_LIMIT=200
-WITNESS_VAL_LIMIT=50
-WITNESS_MAX_STEPS=20
+WITNESS_MAX_SEQ_LENGTH=1024
+WITNESS_BATCH_SIZE=1
+WITNESS_GRAD_ACCUM=8
+WITNESS_LORA_RANK=8
+WITNESS_MAX_STEPS=300
+WITNESS_VAL_LIMIT=300
+WITNESS_SAVE_MERGED=0
 ```
 
-For the real run, leave `WITNESS_TRAIN_LIMIT` and `WITNESS_VAL_LIMIT` unset or `0`, and increase steps, for example:
+Before running the single cell, add a Hugging Face write token to Colab Secrets as `HF_TOKEN`, then set the target model repo near the top of the cell:
 
-```bash
-WITNESS_MAX_STEPS=300
+```python
+os.environ.setdefault("HF_REPO_ID", "your-name/witness-gemma4-e2b-judge")
 ```
 
 In the E2B notebook, verify or edit:
 
 ```python
 BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")
-ACCELERATOR = "t4-gpu"
 OUTPUT_MODEL_NAME = "witness-gemma4-e2b-judge"
-OUTPUT_DIR = "/content/witness_outputs/witness-gemma4-e2b-judge"
+HF_REPO_ID = "your-name/witness-gemma4-e2b-judge"
 ```
 
 If `google/gemma-4-e2b` is not the correct available public ID, replace it with the currently available Gemma 4 E2B model ID.
 
-Run all cells.
+Run the single cell.
 
 Expected outputs:
 
 - LoRA adapter/model files.
 - tokenizer files.
-- optional merged model.
+- zip archive.
+- Hugging Face model repository upload.
 - `metrics.json`.
 - `validation_predictions.jsonl`.
 - model card.

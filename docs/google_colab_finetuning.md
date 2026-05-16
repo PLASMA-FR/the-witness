@@ -1,40 +1,68 @@
-# Google Colab T4 GPU fine-tuning guide
+# Google Colab T4 GPU one-cell fine-tuning guide
 
-The Witness fine-tuning notebooks are Colab-first and now target the Google Colab T4 GPU runtime. Kaggle remains an optional artifact export/download path, but the recommended training runtime is Google Colab with T4 GPU.
+The Witness fine-tuning notebooks are now optimized as one-cell Google Colab notebooks for a constrained free/standard Colab-style runtime:
 
-Important memory note: the notebooks are designed to use both GPU VRAM and system RAM. Unsloth + bitsandbytes 4-bit QLoRA put the model, LoRA adapters, activations, and training tensors on CUDA GPU VRAM. The dataset, tokenizer files, Python process, dataloader buffers, checkpoints, metrics, archives, and Drive/Hugging Face upload plumbing use system RAM and disk. The notebook fails fast if CUDA is unavailable so it does not accidentally train using only CPU/system RAM.
+- one NVIDIA T4 GPU,
+- about 15 GiB GPU VRAM,
+- about 12 GiB system RAM.
+
+The notebooks favor reliability over speed. They use smaller sequence length, batch size 1, gradient accumulation, low LoRA rank, 4-bit loading, checkpoint limits, and adapter-only saving by default.
 
 ## Notebooks
 
-- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended first run on Colab T4 GPU.
-- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — stronger/larger optional run; may need lower sequence length/batch on T4.
+- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended first run.
+- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — larger optional run; may need even lower settings.
 
-## Colab T4 GPU quick start
+Each notebook contains exactly one code cell. Run that one cell after setting the Colab runtime and Hugging Face settings.
 
-1. Open Google Colab.
-2. Upload one of the notebooks, or open it from the GitHub repo.
-3. Select `Runtime -> Change runtime type -> T4 GPU`.
-4. Run the package install/check cell.
-5. Confirm the cell prints:
-   - CUDA GPU name
-   - GPU VRAM free/total
-   - system RAM available/total
-6. Let the setup cell clone this repo into `/content/the-witness`, or upload the repo/dataset manually.
-7. Verify the config cell:
+## Required setup
+
+1. Open the notebook in Google Colab.
+2. Select `Runtime -> Change runtime type -> T4 GPU`.
+3. Add a Hugging Face write token to Colab Secrets as `HF_TOKEN`.
+4. Set `HF_REPO_ID` near the top of the single cell, for example:
 
 ```python
-BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")
-OUTPUT_DIR = /content/witness_outputs/witness-gemma4-e2b-judge
-TRAIN_FILE = /content/the-witness/training/dataset/witness_judge_train.jsonl
-VAL_FILE = /content/the-witness/training/dataset/witness_judge_val.jsonl
-ACCELERATOR = "t4-gpu"
+os.environ.setdefault("HF_REPO_ID", "your-name/witness-gemma4-e2b-judge")
 ```
 
-The base model ID is configurable because exact public Gemma 4 IDs may vary.
+5. Run the one cell.
+
+Do not paste a real Hugging Face token into the notebook. Use Colab Secrets or an environment variable.
+
+## What the one cell does
+
+The single cell performs the full workflow:
+
+1. installs dependencies,
+2. obtains `HF_TOKEN`,
+3. verifies CUDA/T4-like VRAM and system RAM,
+4. clones `/content/the-witness` if needed,
+5. loads the Witness dataset,
+6. loads Gemma in 4-bit with Unsloth/bitsandbytes on CUDA,
+7. applies LoRA adapters,
+8. trains with slow memory-safe settings,
+9. runs lightweight JSON verdict validation,
+10. saves adapter/model artifacts,
+11. creates a zip archive,
+12. creates/updates the Hugging Face model repo,
+13. uploads the output folder to Hugging Face Hub.
 
 ## Memory behavior
 
-The training cell verifies that model parameters are on CUDA:
+The notebooks use both GPU VRAM and system RAM deliberately:
+
+- GPU VRAM: quantized base model, LoRA adapters, activations, gradients/training tensors.
+- System RAM/disk: dataset rows, tokenizer files, Python process, dataloader buffers, checkpoints, metrics, zipping, and Hugging Face upload plumbing.
+
+The cell fails fast if CUDA is unavailable:
+
+```python
+if not torch.cuda.is_available():
+    raise RuntimeError(...)
+```
+
+It also checks model placement:
 
 ```python
 param_device = next(model.parameters()).device
@@ -42,111 +70,57 @@ if param_device.type != "cuda":
     raise RuntimeError(...)
 ```
 
-This catches the bad case where the notebook silently falls back to CPU/system RAM. It also prints CUDA VRAM after model load and system RAM after dataset/model setup.
+This prevents accidental CPU/system-RAM-only training.
 
-If T4 VRAM is tight, lower:
+## Memory-safe defaults
 
-```python
-os.environ["WITNESS_MAX_SEQ_LENGTH"] = "1024"
-os.environ["WITNESS_BATCH_SIZE"] = "1"
-os.environ["WITNESS_LORA_RANK"] = "8"
-```
-
-## Optional Google Drive persistence
-
-To save outputs directly to Drive, set this before the setup cell:
-
-```python
-import os
-os.environ["WITNESS_MOUNT_DRIVE"] = "1"
-```
-
-Then run the setup cell. If Drive is mounted, outputs default to:
+The one-cell notebooks default to:
 
 ```text
-/content/drive/MyDrive/the-witness/outputs/<model-name>
+WITNESS_MAX_SEQ_LENGTH=1024
+WITNESS_BATCH_SIZE=1
+WITNESS_GRAD_ACCUM=8
+WITNESS_LORA_RANK=8
+WITNESS_LORA_ALPHA=16
+WITNESS_LEARNING_RATE=1.5e-4
+WITNESS_MAX_STEPS=300
+WITNESS_VAL_LIMIT=300
+WITNESS_SAVE_MERGED=0
 ```
 
-Otherwise outputs default to:
+These defaults are slower but safer for one T4 with about 12 GiB system RAM and 15 GiB VRAM.
+
+If memory is still tight, reduce:
+
+```python
+os.environ["WITNESS_MAX_SEQ_LENGTH"] = "768"
+os.environ["WITNESS_GRAD_ACCUM"] = "4"
+os.environ["WITNESS_MAX_STEPS"] = "100"
+os.environ["WITNESS_VAL_LIMIT"] = "100"
+```
+
+## Hugging Face output
+
+The one cell uploads to `HF_REPO_ID` using `HF_TOKEN`:
 
 ```text
-/content/witness_outputs/<model-name>
+https://huggingface.co/<HF_REPO_ID>
 ```
 
-## Smoke test settings
-
-For a fast T4 sanity run:
+Default artifact type is LoRA adapter + tokenizer + metrics. Merged 16-bit saving is disabled by default because it can exceed Colab RAM/VRAM limits. Enable only if you know the runtime can handle it:
 
 ```python
-import os
-os.environ["WITNESS_TRAIN_LIMIT"] = "200"
-os.environ["WITNESS_VAL_LIMIT"] = "50"
-os.environ["WITNESS_MAX_STEPS"] = "20"
-os.environ["WITNESS_MAX_SEQ_LENGTH"] = "1024"
-os.environ["WITNESS_BATCH_SIZE"] = "1"
-os.environ["WITNESS_LORA_RANK"] = "8"
+os.environ["WITNESS_SAVE_MERGED"] = "1"
 ```
 
-For the real run, leave dataset limits unset or `0`, and increase steps as memory allows:
-
-```python
-import os
-os.environ["WITNESS_TRAIN_LIMIT"] = "0"
-os.environ["WITNESS_VAL_LIMIT"] = "0"
-os.environ["WITNESS_MAX_STEPS"] = "300"
-```
-
-## Optional Hugging Face Hub upload
-
-The notebooks include an optional Hugging Face upload cell.
-
-1. Create a write token in Hugging Face.
-2. Add it to Colab Secrets as `HF_TOKEN`.
-3. Set a target repo:
-
-```python
-import os
-os.environ["HF_REPO_ID"] = "your-name/witness-gemma4-e2b-judge"
-```
-
-4. Run the upload cell.
-
-If `HF_TOKEN` or `HF_REPO_ID` is missing, the cell creates a zip archive instead. Download it from Colab Files or copy it from Drive.
-
-## Use the trained output in The Witness
-
-### From a downloaded zip or Drive folder
+## Use the uploaded model in The Witness
 
 ```bash
 cd /home/admin/Gemma/witness
-mkdir -p models/witness-gemma4-e2b-judge
-# Copy Colab output files into models/witness-gemma4-e2b-judge
-./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
-```
-
-### From Hugging Face Hub
-
-```bash
 hf download your-name/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
 ./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 
-### Optional Kaggle export
-
-Kaggle is still supported for artifact distribution after Colab training:
-
-```bash
-./training/scripts/kaggle_upload_model.sh /path/to/witness-gemma4-e2b-judge witness-gemma4-e2b-judge
-./target/debug/the-witness model download --source kaggle --model witness-gemma4-e2b-judge
-```
-
-## Security rules
-
-- Do not paste real tokens into notebook cells.
-- Use Colab Secrets for `HF_TOKEN`.
-- Do not commit generated model files, `.env`, `kaggle.json`, `.safetensors`, `.gguf`, or zip archives.
-- Keep trained artifacts in Drive, Hugging Face Hub, Kaggle, or another model registry.
-
 ## Honest status
 
-The repo contains Colab T4 GPU-ready notebooks and dataset. The fine-tuned model is not trained until you run a notebook and publish or copy the output artifact. I validated notebook JSON and project tests locally, but I cannot execute a real Google Colab T4 runtime from this machine.
+The repo contains one-cell Colab T4 notebooks and dataset. The notebooks were locally validated for JSON structure and Python syntax, and project tests pass. They have not been executed on a live Google Colab T4 from this machine. The trained Hugging Face model exists only after you run the notebook and the upload succeeds.

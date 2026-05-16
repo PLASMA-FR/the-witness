@@ -39,7 +39,7 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         "Default backend: Ollama".into(),
         "Default model: gemma4:e2b".into(),
         "Strong model: gemma4:e4b".into(),
-        "Fine-tuning runtime: Google Colab T4 GPU with Unsloth 4-bit LoRA/QLoRA".into(),
+        "Fine-tuning runtime: one-cell Google Colab T4 GPU with Unsloth 4-bit LoRA/QLoRA".into(),
         "Optional Kaggle artifact slug: plasmafr/witness-gemma4-e2b-judge".into(),
         "Fallback: human_review".into(),
         pass(&format!("OS detected: {} {}", hw.os, hw.arch)),

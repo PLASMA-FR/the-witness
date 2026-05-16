@@ -1,75 +1,82 @@
 # Fine-tuning notebooks
 
-These are real Jupyter notebooks for fine-tuning The Witness Gemma 4 judge.
+These notebooks are intentionally one-cell Google Colab notebooks for fine-tuning The Witness Gemma 4 judge.
 
-Primary runtime: Google Colab T4 GPU with Unsloth 4-bit LoRA/QLoRA.
+Primary runtime: one Google Colab T4 GPU with about 15 GiB GPU VRAM and about 12 GiB system RAM.
 
-Memory behavior: model weights, LoRA adapters, activations, and training tensors use CUDA GPU VRAM. Dataset rows, tokenizer files, dataloader buffers, checkpoints, metrics, archives, and upload/download plumbing use Colab system RAM/disk. The notebooks explicitly check CUDA availability and model device placement so training does not silently run on CPU/system RAM only.
+Files:
 
-Status: notebook and pipeline ready. Training/upload pending until the user runs a notebook and publishes or copies the trained artifact.
+- `finetune_gemma4_e2b_unsloth.ipynb` — recommended first run; one code cell fine-tunes `witness-gemma4-e2b-judge`.
+- `finetune_gemma4_e4b_unsloth.ipynb` — stronger/larger optional run; one code cell fine-tunes `witness-gemma4-e4b-judge`.
 
-## Files
+## Why one cell?
 
-- `finetune_gemma4_e2b_unsloth.ipynb` — Colab T4 GPU notebook that fine-tunes Gemma 4 E2B as `witness-gemma4-e2b-judge`.
-- `finetune_gemma4_e4b_unsloth.ipynb` — Colab T4 GPU notebook that fine-tunes Gemma 4 E4B as `witness-gemma4-e4b-judge`.
+The user can open the notebook, select T4 GPU, set Hugging Face variables/secrets, and run exactly one cell. That one cell:
 
-## Dataset size
+1. installs dependencies,
+2. reads the Hugging Face token from Colab Secrets or `HF_TOKEN`,
+3. checks CUDA, GPU VRAM, and system RAM,
+4. clones/uses the repo dataset,
+5. loads Gemma through Unsloth 4-bit QLoRA on GPU VRAM,
+6. trains with slow memory-safe settings,
+7. validates JSON verdict output,
+8. saves adapter/model artifacts,
+9. creates a zip archive,
+10. uploads the output folder to Hugging Face Hub.
 
-The bundled dataset is now larger than 10 MB:
+## Required Colab setup
 
-- train: 12,000 rows, about 10.9 MB
-- validation: 1,500 rows, about 1.37 MB
-- total: about 12.28 MB / 11.71 MiB
+1. Open the notebook in Google Colab.
+2. Select `Runtime -> Change runtime type -> T4 GPU`.
+3. Add `HF_TOKEN` to Colab Secrets. Use a Hugging Face write token. Do not paste tokens into the notebook.
+4. In the top of the one cell, set:
 
-Regenerate/validate it with:
-
-```bash
-cd /home/admin/Gemma/witness
-python3 training/scripts/prepare_dataset.py
-python3 training/scripts/validate_dataset.py
-wc -c training/dataset/witness_judge_train.jsonl training/dataset/witness_judge_val.jsonl
+```python
+os.environ.setdefault("HF_REPO_ID", "your-name/witness-gemma4-e2b-judge")
 ```
 
-## Recommended Colab T4 GPU path
+or set `HF_REPO_ID` as an environment variable before running.
 
-Use E2B first:
+5. Run the single cell.
 
-1. Open `finetune_gemma4_e2b_unsloth.ipynb` in Google Colab.
-2. Select `Runtime -> Change runtime type -> T4 GPU`.
-3. Run the install/check cell and confirm it prints CUDA GPU VRAM plus system RAM.
-4. Run the setup cell. It clones this repo into `/content/the-witness` if the dataset is not already present.
-5. Optional: set `WITNESS_MOUNT_DRIVE=1` before setup to save outputs to Google Drive.
-6. Verify the editable base model ID:
-   - `BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")`
-7. For a smoke test, set:
+## Memory behavior
 
-   ```python
-   import os
-   os.environ["WITNESS_TRAIN_LIMIT"] = "200"
-   os.environ["WITNESS_VAL_LIMIT"] = "50"
-   os.environ["WITNESS_MAX_STEPS"] = "20"
-   os.environ["WITNESS_MAX_SEQ_LENGTH"] = "1024"
-   os.environ["WITNESS_BATCH_SIZE"] = "1"
-   os.environ["WITNESS_LORA_RANK"] = "8"
-   ```
+The notebooks are optimized for a constrained Colab T4 runtime even if that makes training slower:
 
-8. For the real run, leave the limits at `0` or unset and increase training steps as T4 memory allows, for example:
+- GPU VRAM is used for the quantized model, LoRA adapters, activations, and training tensors.
+- System RAM/disk are used for dataset rows, tokenizer files, dataloader buffers, checkpoints, metrics, archives, and upload/download plumbing.
+- CUDA is required. The cell raises an error if CUDA is missing.
+- The cell checks model parameter placement and raises an error if the model is not on CUDA.
 
-   ```python
-   import os
-   os.environ["WITNESS_MAX_STEPS"] = "300"
-   ```
+Memory-safe defaults:
 
-9. Run all cells.
-10. Confirm outputs exist:
-   - adapter/model files
-   - tokenizer files
-   - `metrics.json`
-   - `validation_predictions.jsonl`
-   - README/model card
-   - zip archive
-11. Download the zip, copy from Google Drive, or upload to Hugging Face Hub with the optional upload cell.
-12. On The Witness machine, test the copied model path:
+```python
+WITNESS_MAX_SEQ_LENGTH=1024
+WITNESS_BATCH_SIZE=1
+WITNESS_GRAD_ACCUM=8
+WITNESS_LORA_RANK=8
+WITNESS_LORA_ALPHA=16
+WITNESS_MAX_STEPS=300
+WITNESS_VAL_LIMIT=300
+WITNESS_SAVE_MERGED=0
+```
+
+`WITNESS_SAVE_MERGED=0` is intentional. A merged 16-bit model can exceed Colab T4/system RAM limits. The default upload is the LoRA adapter plus tokenizer, metrics, model card, and validation outputs. If you really need a merged model and have enough memory, set `WITNESS_SAVE_MERGED=1` before running.
+
+## Hugging Face upload
+
+The one cell requires:
+
+- `HF_TOKEN` from Colab Secrets or environment.
+- `HF_REPO_ID`, for example `your-name/witness-gemma4-e2b-judge`.
+
+The cell calls `create_repo(..., exist_ok=True)` and `HfApi.upload_folder(...)` using the token. When complete, it prints:
+
+```text
+DONE: uploaded to https://huggingface.co/<HF_REPO_ID>
+```
+
+## Use the uploaded model locally
 
 ```bash
 cd /home/admin/Gemma/witness
@@ -77,11 +84,6 @@ hf download your-name/witness-gemma4-e2b-judge --local-dir models/witness-gemma4
 ./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 
-Kaggle remains optional after Colab training:
+## Honest status
 
-```bash
-./training/scripts/kaggle_upload_model.sh /path/to/witness-gemma4-e2b-judge witness-gemma4-e2b-judge
-./target/debug/the-witness model download --source kaggle --model witness-gemma4-e2b-judge
-```
-
-See `docs/google_colab_finetuning.md` and `docs/user_completion_guide.md` for the full completion flow.
+The notebooks are validated locally for JSON structure and Python syntax, and the project tests pass. They have not been executed on a live Colab T4 from this machine. The actual fine-tuned model exists only after you run the one-cell notebook in Colab and the Hugging Face upload succeeds.
