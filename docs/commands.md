@@ -149,14 +149,14 @@ Doctor checks:
 - Setup flags for judge schema test, model test, and proxy test.
 - Blackbox API key if Blackbox endpoint is enabled.
 - Local proxy port availability.
-- Kaggle CLI and credentials for Unsloth model workflows.
+- Google Colab GPU for Unsloth training; Kaggle CLI credentials only for optional Kaggle artifact upload/download.
 - Model registry files.
 - Log directory writability.
 
 On a fresh machine, these can be expected incomplete items, not code failures:
 
-- Kaggle CLI missing.
-- Kaggle credentials missing.
+- Kaggle CLI missing; only required for optional Kaggle artifact upload/download.
+- Kaggle credentials missing; only required for optional Kaggle artifact upload/download.
 - `BLACKBOX_API_KEY` not set.
 - Fine-tuned model not downloaded.
 - `gemma4:e4b` not pulled.
@@ -416,7 +416,7 @@ Model test expects the judge to return only the required JSON verdict schema.
 
 ### `the-witness model download`
 
-Download registered Kaggle model artifacts after training/upload:
+Download registered Kaggle model artifacts only if you chose optional Kaggle publishing after Colab training:
 
 ```bash
 the-witness model download --source kaggle --model witness-gemma4-e2b-judge
@@ -424,8 +424,8 @@ the-witness model download --source kaggle --model witness-gemma4-e2b-judge
 
 This requires:
 
-- Kaggle CLI installed.
-- Kaggle credentials configured locally.
+- Kaggle CLI installed, only for optional Kaggle artifact download.
+- Kaggle credentials configured locally, only for optional Kaggle artifact download.
 - The model artifact actually uploaded and accessible.
 
 Target slug:
@@ -763,7 +763,7 @@ the-witness model test \
 Fine-tuned judge path:
 
 ```bash
-# Train first in the notebook.
+# Train first in the Google Colab notebook.
 training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
 
 # Upload target.
@@ -776,7 +776,7 @@ the-witness model download --source kaggle --model witness-gemma4-e2b-judge
 the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
 ```
 
-Honest status: notebooks and dataset are ready, but the model is not trained until you run the notebook.
+Honest status: Colab notebooks and dataset are ready, but the model is not trained until you run the notebook.
 
 ## Logs and audit
 
@@ -885,7 +885,7 @@ ollama pull gemma4:e2b
 the-witness model test --backend demo --model demo-judge
 the-witness setup
 export BLACKBOX_API_KEY="YOUR_KEY_HERE"   # only if using Blackbox
-python -m pip install kaggle                 # only if using Kaggle/Unsloth
+python -m pip install kaggle                 # only if using optional Kaggle artifact flow
 ```
 
 ## Development commands

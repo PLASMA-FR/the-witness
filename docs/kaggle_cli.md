@@ -22,7 +22,7 @@ cp kaggle.json ~/.kaggle/kaggle.json
 chmod 600 ~/.kaggle/kaggle.json
 ```
 
-Run notebook on Kaggle:
+Primary training now runs in Google Colab. After Colab training, optionally upload the artifact with Kaggle CLI. Colab notebook files:
 
 - training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
 

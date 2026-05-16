@@ -2,7 +2,7 @@
 
 This guide is the user-side completion checklist for The Witness after the Rust code has been built and tested.
 
-Important honesty note: the Unsloth model is not fine-tuned or uploaded until you run the notebook and complete the Kaggle upload. Current status is: notebook and pipeline ready, training/upload pending.
+Important honesty note: the Unsloth model is not fine-tuned or uploaded until you run the Google Colab notebook and publish or copy the trained artifact. Current status is: Colab notebook and pipeline ready, training/upload pending.
 
 ## 1. Current project status
 
@@ -25,7 +25,7 @@ What is not done until you do it:
 
 - The fine-tuned model is not trained.
 - The fine-tuned model is not uploaded.
-- The fine-tuned model is not downloadable/testable until it exists on Kaggle and credentials are configured.
+- The fine-tuned model is not downloadable/testable until you copy it from Colab/Drive, download it from Hugging Face Hub, or optionally upload it to Kaggle.
 - Ollama models must be pulled locally.
 - Blackbox testing requires `BLACKBOX_API_KEY` in your shell environment.
 
@@ -59,7 +59,7 @@ Failures that are normal before setup:
 - Ollama not running.
 - `gemma4:e2b` missing.
 - `gemma4:e4b` missing/optional.
-- Kaggle credentials missing.
+- Kaggle credentials missing; only required for optional Kaggle artifact upload/download.
 - Fine-tuned model not downloaded.
 - `BLACKBOX_API_KEY` not set.
 - Judge schema/model/proxy setup flags not passed.
@@ -186,9 +186,9 @@ Expected:
 - Disapproved response triggers prompt repair and retry.
 - Logs are saved.
 
-## 9. Step 8 — Fine-tune the model on Kaggle
+## 9. Step 8 — Fine-tune the model on Google Colab
 
-Open this notebook on Kaggle:
+Open this notebook in Google Colab with a GPU runtime:
 
 ```text
 training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
@@ -200,7 +200,7 @@ Optional stronger model notebook:
 training/notebooks/finetune_gemma4_e4b_unsloth.ipynb
 ```
 
-Upload these dataset files as a Kaggle input dataset, preferably named `witness-judge-dataset`:
+The Colab setup cell clones the repo and uses these dataset files automatically. If you prefer manual upload, upload:
 
 ```text
 training/dataset/witness_judge_train.jsonl
@@ -222,7 +222,7 @@ python3 training/scripts/validate_dataset.py
 wc -c training/dataset/witness_judge_train.jsonl training/dataset/witness_judge_val.jsonl
 ```
 
-For a quick Kaggle smoke test, set notebook environment variables:
+For a quick Colab smoke test, set notebook environment variables:
 
 ```bash
 WITNESS_TRAIN_LIMIT=200
@@ -241,7 +241,7 @@ In the E2B notebook, verify or edit:
 ```python
 BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")
 OUTPUT_MODEL_NAME = "witness-gemma4-e2b-judge"
-OUTPUT_DIR = "/kaggle/working/witness-gemma4-e2b-judge"
+OUTPUT_DIR = "/content/witness_outputs/witness-gemma4-e2b-judge"
 ```
 
 If `google/gemma-4-e2b` is not the correct available public ID, replace it with the currently available Gemma 4 E2B model ID.
@@ -262,7 +262,7 @@ Expected outputs:
 
 Do not claim the model is trained unless these outputs are produced by your notebook run.
 
-## 10. Step 9 — Upload trained model to Kaggle
+## 10. Step 9 — Publish or copy the Colab-trained model
 
 Target slug:
 
@@ -272,9 +272,9 @@ plasmafr/witness-gemma4-e2b-judge
 
 Preferred method:
 
-- Use the Kaggle upload cells in the notebook.
-- Confirm whether Kaggle model upload or dataset fallback succeeded.
-- Copy the final Kaggle resource URL.
+- Use the Hugging Face upload cell in the notebook, download the generated zip, or copy the output from Google Drive.
+- Confirm whether Hugging Face upload, Drive copy, or zip download succeeded.
+- Copy the final Hugging Face repo URL or local artifact path.
 
 Script method from the project root, after the notebook has produced a local output directory:
 
@@ -283,30 +283,36 @@ cd /home/admin/Gemma/witness
 ./training/scripts/kaggle_upload_model.sh training/outputs/witness-gemma4-e2b-judge witness-gemma4-e2b-judge
 ```
 
-If running inside Kaggle and the output directory is `/kaggle/working/witness-gemma4-e2b-judge`, use the notebook upload cells or adapt the script path accordingly.
+If running inside Colab, download the zip, copy from Google Drive, or use the notebook Hugging Face upload cell. Kaggle upload is optional after Colab training.
 
-Do not upload secrets. Do not commit model weights unless intentionally publishing them through Kaggle.
+Do not upload secrets. Do not commit model weights unless intentionally publishing them through a model registry.
 
-## 11. Step 10 — Download fine-tuned model into The Witness
+## 11. Step 10 — Move the fine-tuned model into The Witness
 
-On The Witness machine:
+Preferred local/Hugging Face methods on The Witness machine:
 
 ```bash
 cd /home/admin/Gemma/witness
-./target/debug/the-witness model download --source kaggle --model witness-gemma4-e2b-judge
+mkdir -p models/witness-gemma4-e2b-judge
+# Option A: copy the Colab/Drive output files into models/witness-gemma4-e2b-judge
+# Option B: download from Hugging Face Hub
+hf download your-name/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
+./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 
-Then test:
+Optional Kaggle artifact path, only if you published the Colab output to Kaggle:
 
 ```bash
+./target/debug/the-witness model download --source kaggle --model witness-gemma4-e2b-judge
 ./target/debug/the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
 ```
 
 If this fails, common causes are:
 
-- Kaggle credentials missing.
-- Model slug not uploaded yet.
-- Authenticated Kaggle account cannot access the uploaded model/dataset.
+- The Colab output was not copied/downloaded into the expected local path.
+- `HF_TOKEN`/Hub permissions are missing for private Hugging Face repos.
+- Kaggle credentials are missing for the optional Kaggle artifact path.
+- Optional Kaggle account cannot access the uploaded model/dataset.
 - Model files are not compatible with the local inference path.
 - Local Unsloth inference server/path is not started or configured.
 - The test is still pointed at the default Ollama URL instead of a configured Unsloth backend.
@@ -321,7 +327,7 @@ If this fails, common causes are:
 
 2. Go to Model Manager or Settings.
 3. Select `Fine-tuned Witness Gemma 4 E2B Judge`.
-4. Download from Kaggle if missing.
+4. Copy from Colab/Drive or download from Hugging Face Hub; use Kaggle download only if you chose optional Kaggle artifact publishing.
 5. Test model.
 6. Set as default judge or assign per endpoint.
 7. Keep `human_review` fallback enabled.
@@ -382,7 +388,7 @@ Optional but recommended for coding/high-risk profiles:
 ollama pull gemma4:e4b
 ```
 
-### Kaggle credentials missing
+### Kaggle credentials missing; only required for optional Kaggle artifact upload/download
 
 Local method:
 
@@ -394,7 +400,7 @@ chmod 600 ~/.kaggle/kaggle.json
 
 Or set Kaggle environment variables if your environment supports them.
 
-### Kaggle model not found
+### Optional Kaggle model not found
 
 Confirm:
 

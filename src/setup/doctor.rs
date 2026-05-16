@@ -39,7 +39,8 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         "Default backend: Ollama".into(),
         "Default model: gemma4:e2b".into(),
         "Strong model: gemma4:e4b".into(),
-        "Fine-tuned Kaggle model: plasmafr/witness-gemma4-e2b-judge".into(),
+        "Fine-tuning runtime: Google Colab GPU (recommended)".into(),
+        "Optional Kaggle artifact slug: plasmafr/witness-gemma4-e2b-judge".into(),
         "Fallback: human_review".into(),
         pass(&format!("OS detected: {} {}", hw.os, hw.arch)),
         pass(&format!(
@@ -135,17 +136,17 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         if kaggle::kaggle_cli_available() {
             pass("Kaggle CLI installed")
         } else {
-            fail(
-                "Kaggle CLI missing",
-                "Install with `python -m pip install kaggle` for Unsloth model download/upload.",
+            warn(
+                "Kaggle CLI missing/optional",
+                "Only install Kaggle CLI if you use optional Kaggle artifact upload/download after Colab training.",
             )
         },
         if kaggle::kaggle_credentials_available() {
             pass("Kaggle CLI authenticated/credentials available")
         } else {
-            fail(
-                "Kaggle credentials missing",
-                "Configure Kaggle CLI credentials locally; do not commit tokens.",
+            warn(
+                "Kaggle credentials missing/optional",
+                "Only configure Kaggle credentials if you use optional Kaggle artifact upload/download after Colab training.",
             )
         },
         if registry

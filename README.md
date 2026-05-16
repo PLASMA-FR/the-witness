@@ -124,7 +124,7 @@ the-witness model download --source kaggle --model witness-gemma4-e2b-judge
 the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
 ```
 
-Honest status: Unsloth notebooks and pipeline exist, but the model is not trained or uploaded until you run the notebook and upload the artifact.
+Honest status: Unsloth notebooks and pipeline exist, but the model is not trained or uploaded until you run the Google Colab notebook and publish or copy the artifact.
 
 Fine-tuning assets:
 
@@ -220,7 +220,8 @@ See `docs/tracks.md` for details.
 - `docs/features.md` — full feature guide and honest MVP status table.
 - `docs/architecture.md` — architecture and data flow.
 - `docs/setup.md` — setup and health checks.
-- `docs/kaggle_cli.md` — Kaggle auth/upload/download notes.
+- `docs/google_colab_finetuning.md` — Google Colab-first Unsloth fine-tuning guide.
+- `docs/kaggle_cli.md` — optional Kaggle auth/upload/download notes for artifact distribution after Colab training.
 - `docs/tracks.md` — technology track mapping.
 - `docs/demo_script.md` — demo flow.
 - `docs/hackathon_writeup.md` — hackathon positioning.

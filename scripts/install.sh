@@ -118,7 +118,7 @@ info "Running doctor if possible"
 if "$THE_WITNESS" doctor; then
   info "Doctor passed readiness checks"
 else
-  warn "Doctor reported incomplete readiness. This is expected until Ollama/models/Kaggle/endpoint setup are configured."
+  warn "Doctor reported incomplete readiness. This is expected until Ollama/models/optional Kaggle/endpoint setup are configured."
 fi
 
 cat <<EOF

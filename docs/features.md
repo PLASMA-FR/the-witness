@@ -90,7 +90,7 @@ What it checks:
 - Ollama daemon availability.
 - Model availability.
 - Proxy port availability.
-- Kaggle CLI and credentials for fine-tuned model workflows.
+- Google Colab GPU for Unsloth fine-tuning; Kaggle CLI credentials only for optional artifact upload/download.
 - Logs writable.
 - Setup readiness flags.
 
@@ -551,7 +551,7 @@ python3 training/scripts/prepare_dataset.py
 Notebook:
 
 ```text
-training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
+training/notebooks/finetune_gemma4_e2b_unsloth.ipynb (Google Colab-first)
 ```
 
 Upload target:
@@ -566,7 +566,7 @@ Download after upload:
 the-witness model download --source kaggle --model witness-gemma4-e2b-judge
 ```
 
-Status: dataset, notebooks, and upload/download pipeline are ready. Training and upload remain user-side.
+Status: dataset and Colab-first notebooks are ready. Training and artifact publishing remain user-side.
 
 ## Current honest MVP status
 

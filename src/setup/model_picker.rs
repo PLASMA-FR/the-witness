@@ -18,7 +18,7 @@ pub fn choices() -> Vec<ModelChoice> {
         },
         ModelChoice {
             label: "Fine-tuned Witness Judge",
-            description: "Kaggle model plasmafr/witness-gemma4-e2b-judge; download via Kaggle CLI",
+            description: "Fine-tuned in Google Colab with Unsloth; copy local path, use Hugging Face Hub, or optional Kaggle download",
             default_name: "witness-gemma4-e2b-judge",
         },
         ModelChoice {

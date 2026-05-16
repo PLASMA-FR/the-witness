@@ -25,7 +25,7 @@ run_optional_doctor() {
   if [ "$code" -eq 0 ]; then
     pass "doctor readiness passed"
   else
-    warn "doctor ran but readiness is incomplete. This is expected on unconfigured machines without Ollama models, Kaggle credentials, or endpoint secrets."
+    warn "doctor ran but readiness is incomplete. This is expected on unconfigured machines without Ollama models, optional Kaggle credentials, or endpoint secrets."
   fi
 }
 

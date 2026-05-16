@@ -15,9 +15,10 @@ Start here if you want more detail than the top-level README.
 - [Demo script](demo_script.md): step-by-step demo flow.
 - [Hackathon writeup](hackathon_writeup.md): project positioning and story.
 
-## Fine-tuning and Kaggle
+## Fine-tuning, Colab, and optional Kaggle
 
-- [Kaggle CLI guide](kaggle_cli.md): local Kaggle auth/upload/download notes.
+- [Google Colab fine-tuning guide](google_colab_finetuning.md): recommended Unsloth training runtime and artifact export flow.
+- [Kaggle CLI guide](kaggle_cli.md): optional Kaggle auth/upload/download notes after Colab training.
 - [User completion guide](user_completion_guide.md): what remains user-side for training, upload, and final model testing.
 
 ## Quick commands
