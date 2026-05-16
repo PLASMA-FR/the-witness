@@ -22,8 +22,16 @@ use std::{
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
-    #[arg(long, default_value = "/home/admin/Gemma/witness/witness.toml")]
-    pub config: PathBuf,
+    #[arg(long)]
+    pub config: Option<PathBuf>,
+}
+
+impl Cli {
+    pub fn resolved_config_path(&self) -> PathBuf {
+        self.config
+            .clone()
+            .unwrap_or_else(WitnessConfig::default_path)
+    }
 }
 #[derive(Subcommand, Debug)]
 pub enum Commands {
@@ -117,7 +125,7 @@ pub struct EndpointAdd {
 
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
-    let path = cli.config;
+    let path = cli.resolved_config_path();
     match cli.command.unwrap_or(Commands::Start { proxy_addr: None }) {
         Commands::Init { path: dir } => init(&dir),
         Commands::Setup => {
@@ -184,7 +192,7 @@ async fn start(path: &Path, addr: Option<SocketAddr>) -> Result<()> {
     if !cfg.setup_ready() {
         println!("Setup incomplete; opening setup wizard first.");
         let cfg = setup::wizard::run_setup_wizard(path).await?;
-        return App::new(cfg).run();
+        return App::new_with_path(cfg, path.to_path_buf()).run();
     }
     if let Some(addr) = addr {
         let judge: Arc<dyn crate::judge::gemma::GemmaJudge> = if cfg.gemma.backend == "demo" {

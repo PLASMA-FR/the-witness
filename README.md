@@ -68,6 +68,19 @@ the-witness doctor
 the-witness start
 ```
 
+By default the installed CLI stores config at:
+
+```text
+${WITNESS_CONFIG_DIR:-$HOME/.config/the-witness}/witness.toml
+```
+
+Override it when needed:
+
+```bash
+the-witness --config /path/to/witness.toml setup
+WITNESS_CONFIG_DIR=/path/to/config-dir the-witness start
+```
+
 The setup wizard guides first-run configuration before the dashboard opens. The TUI includes:
 
 - setup wizard

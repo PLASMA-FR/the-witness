@@ -204,6 +204,18 @@ impl Default for WitnessConfig {
     }
 }
 impl WitnessConfig {
+    pub fn default_path() -> PathBuf {
+        if let Some(dir) = std::env::var_os("WITNESS_CONFIG_DIR") {
+            return PathBuf::from(dir).join("witness.toml");
+        }
+        if let Some(dir) = std::env::var_os("XDG_CONFIG_HOME") {
+            return PathBuf::from(dir).join("the-witness/witness.toml");
+        }
+        if let Some(home) = std::env::var_os("HOME") {
+            return PathBuf::from(home).join(".config/the-witness/witness.toml");
+        }
+        PathBuf::from("witness.toml")
+    }
     pub fn path_in(root: &Path) -> PathBuf {
         root.join("witness.toml")
     }
@@ -213,9 +225,11 @@ impl WitnessConfig {
     }
     pub fn save(&self, path: &Path) -> Result<()> {
         if let Some(p) = path.parent() {
-            fs::create_dir_all(p)?
+            fs::create_dir_all(p)
+                .with_context(|| format!("create config directory {}", p.display()))?
         }
-        fs::write(path, toml::to_string_pretty(self)?)?;
+        fs::write(path, toml::to_string_pretty(self)?)
+            .with_context(|| format!("write config {}", path.display()))?;
         Ok(())
     }
     pub fn setup_ready(&self) -> bool {
