@@ -1,5 +1,21 @@
 # The Witness: a local Gemma 4 firewall for AI reliability
 
+<p align="center">
+  <a href="#the-witness-a-local-gemma-4-firewall-for-ai-reliability">Overview</a> ·
+  <a href="#1-one-sentence-pitch">Pitch</a> ·
+  <a href="#4-core-architecture">Architecture</a> ·
+  <a href="#7-custom-fine-tuned-model">Fine-tuned model</a> ·
+  <a href="#16-installation">Install</a> ·
+  <a href="#33-full-feature-inventory">Features</a> ·
+  <a href="#37-technical-handbook-install-run-use-and-extend">Technical handbook</a> ·
+  <a href="#38-command-cookbook">Commands</a> ·
+  <a href="#39-feature-deep-dive">Feature deep dive</a> ·
+  <a href="#40-possibility-map">Possibilities</a>
+</p>
+
+> This document has two layers: the story for judges, then a hands-on technical handbook for builders who want to install, run, test, demo, and extend The Witness.
+
+
 Subtitle: The missing verification layer between AI generation and real-world action.
 
 Primary submission track: Safety & Trust.
@@ -1526,3 +1542,1043 @@ Benefit 141: The Witness supports Arabic-English validation.
 Risk 141: The unchecked endpoint could produce lost meaning or unsafe translation.
 Mitigation 141: Use multilingual profile.
 Audit 141: The event is logged with verdict, reason, retry state, and fallback outcome.
+
+---
+
+## 37. Technical handbook: install, run, use, and extend
+
+This section is the maintainer-style guide. It is meant for judges, developers, demo operators, and anyone who wants to reproduce the project from a clean machine.
+
+### 37.1 System map
+
+```mermaid
+flowchart LR
+    App[AI app or agent] -->|OpenAI-compatible request| Proxy[The Witness local proxy]
+    Proxy -->|forward request| Upstream[Watched upstream endpoint]
+    Upstream -->|candidate response| Proxy
+    Proxy -->|request + candidate| Judge[Gemma 4 judge]
+    Judge -->|strict JSON verdict| Proxy
+    Proxy -->|approved response| App
+    Proxy -->|events| Logs[JSONL audit logs]
+    Proxy -->|uncertain output| Review[Human review queue]
+    Proxy -->|rejected output| Repair[Prompt repair loop]
+    Repair -->|retry request| Upstream
+```
+
+### 37.2 Request lifecycle
+
+```mermaid
+sequenceDiagram
+    participant UserApp as Original AI app
+    participant Witness as The Witness proxy
+    participant API as Upstream model endpoint
+    participant Gemma as Gemma 4 judge
+    participant Audit as Audit log
+    UserApp->>Witness: POST /v1/chat/completions
+    Witness->>Audit: record redacted request metadata
+    Witness->>API: forward original request
+    API-->>Witness: candidate response
+    Witness->>Gemma: judge original request + candidate
+    Gemma-->>Witness: verdict JSON
+    alt APPROVED
+        Witness->>Audit: approved event
+        Witness-->>UserApp: candidate response
+    else DISAPPROVED
+        Witness->>Audit: rejected event
+        Witness->>Witness: repair prompt
+        Witness->>API: retry repaired request
+    else NEEDS_HUMAN_REVIEW
+        Witness->>Audit: review event
+        Witness-->>UserApp: configured fallback or pause
+    end
+```
+
+### 37.3 Quick install choices
+
+| Path | Best for | Command |
+|---|---|---|
+| Installer | Fastest demo | `curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.sh \| bash` |
+| Manual Rust build | Reviewers and contributors | `git clone https://github.com/PLASMA-FR/the-witness.git && cd the-witness && cargo build --release` |
+| Ollama judge | Easiest local Gemma 4 path | `ollama pull gemma4:e2b` |
+| Fine-tuned adapter | Unsloth track demo | `the-witness model download --source huggingface --model witness-gemma4-e2b-judge` |
+| Existing local server | Advanced setups | `the-witness setup` then choose manual OpenAI-compatible endpoint |
+
+### 37.4 Clean-machine install
+
+- `sudo apt-get update`
+- `sudo apt-get install -y build-essential pkg-config libssl-dev curl git`
+- `curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- `source "$HOME/.cargo/env"`
+- `git clone https://github.com/PLASMA-FR/the-witness.git`
+- `cd the-witness`
+- `cargo build --release`
+- `./target/release/the-witness --help`
+- `./target/release/the-witness setup`
+- `./target/release/the-witness doctor`
+- `./target/release/the-witness start`
+
+### 37.5 Ollama path, step by step
+
+| Step | What to do |
+|---|---|
+| Install Ollama | Download it from https://ollama.com/download or use your platform package flow. |
+| Start Ollama | Run the Ollama service before starting The Witness. |
+| Pull the model | Use a configured Gemma model name such as `gemma4:e2b` if available in your environment. |
+| Test the judge | Run `the-witness model test --backend ollama --model gemma4:e2b`. |
+| Run doctor | Run `the-witness doctor` and read failures as setup guidance, not as mystery errors. |
+| Start the TUI | Run `the-witness start`. |
+
+### 37.6 Fine-tuned Witness judge path
+
+The fine-tuned model is an adapter. Treat it like an add-on to the Gemma 4 E2B base model, not as a standalone base model.
+
+- `python -m pip install -U huggingface_hub`
+- `the-witness model download --source huggingface --model witness-gemma4-e2b-judge`
+- `the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge`
+- `the-witness doctor`
+- `the-witness start`
+
+Model card: https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
+
+Training notebook: https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing
+
+### 37.7 Config file shape
+
+```toml
+[gemma]
+backend = "ollama"
+model = "gemma4:e2b"
+url = "http://localhost:11434"
+setup_completed = true
+
+[defaults]
+retry_limit = 3
+strictness = "medium"
+fallback_mode = "human_review"
+log_format = "jsonl"
+privacy_mode = false
+
+[[endpoints]]
+name = "Codex"
+enabled = true
+upstream_url = "https://api.openai.com/v1"
+local_proxy_url = "http://localhost:8787/v1"
+model = "gpt-5.5"
+profile = "coding"
+retry_limit = 4
+strictness = "high"
+fallback_mode = "human_review"
+```
+
+### 37.8 Endpoint setup flow
+
+- Choose the upstream endpoint you already use.
+- Choose a local proxy port that is free.
+- Choose a validation profile.
+- Choose a strictness level.
+- Choose a retry limit.
+- Choose fallback behavior for unresolved failures.
+- Add the endpoint in the TUI or CLI.
+- Point your AI app to the local proxy URL.
+- Send a small test request.
+- Check the live stream and audit log.
+
+### 37.9 Safe environment variables
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `WITNESS_CONFIG_DIR` | Override config directory | `WITNESS_CONFIG_DIR=/tmp/witness the-witness start` |
+| `BLACKBOX_API_KEY` | Example endpoint key | `export BLACKBOX_API_KEY="..."` |
+| `HF_TOKEN` | Optional Hugging Face access | `export HF_TOKEN="..."` |
+| `RUST_LOG` | Debug logging | `RUST_LOG=debug the-witness start` |
+
+Practical rule: put secrets in environment variables, not screenshots, not Markdown, not commits.
+
+## 38. Command cookbook
+
+| Task | Command |
+|---|---|
+| Show help | `the-witness --help` |
+| Initialize a project directory | `the-witness init /Gemma/witness` |
+| Run setup wizard | `the-witness setup` |
+| Run health checks | `the-witness doctor` |
+| Start TUI and proxy | `the-witness start` |
+| List models | `the-witness model list` |
+| Interactive model install | `the-witness model install` |
+| Install Ollama model | `the-witness model install --backend ollama --model gemma4:e2b` |
+| Download fine-tuned adapter | `the-witness model download --source huggingface --model witness-gemma4-e2b-judge` |
+| Test selected model | `the-witness model test` |
+| Test Ollama model | `the-witness model test --backend ollama --model gemma4:e2b` |
+| Add endpoint interactively | `the-witness endpoint add` |
+| Add coding endpoint | `the-witness endpoint add --name "Codex" --upstream "https://api.openai.com/v1" --local "http://localhost:8787/v1" --profile coding --retry-limit 4 --strictness high` |
+| List endpoints | `the-witness endpoint list` |
+| Test endpoint | `the-witness endpoint test "Codex"` |
+| Disable endpoint | `the-witness endpoint disable "Codex"` |
+| Enable endpoint | `the-witness endpoint enable "Codex"` |
+| Open logs | `the-witness logs` |
+| Replay request | `the-witness replay <request-id>` |
+| Export Markdown report | `the-witness export <request-id> --format markdown` |
+| Export JSON report | `the-witness export <request-id> --format json` |
+| Export CSV summary | `the-witness export <request-id> --format csv` |
+
+### 38.1 Curl through the proxy
+
+```bash
+curl http://localhost:8787/v1/chat/completions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.5",
+    "messages": [
+      {"role": "user", "content": "Explain rate limiting in one paragraph."}
+    ]
+  }'
+```
+
+### 38.2 Demo endpoint with Blackbox-style config
+
+```bash
+export BLACKBOX_API_KEY="YOUR_KEY_HERE"
+the-witness endpoint add-blackbox
+the-witness start
+```
+
+### 38.3 Local development checks
+
+- `cargo fmt --check`
+- `cargo check`
+- `cargo test`
+- `cargo build --release`
+- `scripts/verify.sh`
+
+### 38.4 Troubleshooting commands
+
+| Problem | Command |
+|---|---|
+| Ollama is not found | `command -v ollama || echo "Install Ollama first"` |
+| Ollama server check | `curl http://localhost:11434/api/tags` |
+| Port 8787 check | `python3 - <<'PY'
+import socket
+s=socket.socket(); print(s.connect_ex(("127.0.0.1",8787)))
+PY` |
+| Disk check | `df -h .` |
+| Memory check | `free -h` |
+| Git remote check | `git remote -v` |
+| Latest commit | `git rev-parse HEAD` |
+
+## 39. Feature deep dive
+
+| Feature | Why it matters |
+|---|---|
+| First-run setup wizard | Prevents users from entering the dashboard with a broken judge setup. |
+| Backend picker | Lets users choose Ollama, llama.cpp, LiteRT, Unsloth, or a manual endpoint. |
+| Hardware check | Shows OS, CPU architecture, RAM, disk, GPU hints, installed tools, and free ports where detectable. |
+| Gemma model picker | Explains small, balanced, large, and custom model choices without pretending every name is guaranteed real. |
+| Ollama pull helper | Guides `ollama pull <model>` and allows users to skip when the model already exists. |
+| Judge schema test | Refuses to trust a judge that cannot produce valid verdict JSON. |
+| Sanity verdict test | Checks that the judge rejects an obviously wrong answer and approves a clearly correct one. |
+| Proxy health test | Starts a temporary proxy and verifies receive, forward, capture, judge, and log behavior. |
+| Endpoint watch mode | Lets any OpenAI-compatible endpoint sit behind the local Witness proxy. |
+| Auto prompt repair | Turns rejection reasons into stricter retry instructions without changing user intent. |
+| Retry chain viewer | Shows original request, rejected response, judge reason, repaired prompt, retry response, and final result. |
+| Human review queue | Stops risky or uncertain responses instead of forcing unsafe automation. |
+| Endpoint health checks | Tests upstream connectivity, auth, local proxy port, and judging behavior. |
+| Secret redaction | Hides API keys and auth headers in the TUI and logs. |
+| Per-endpoint profiles | Lets each endpoint use a different validation style and strictness level. |
+| Approval analytics | Shows approval rate by endpoint and profile. |
+| Replay requests | Reruns old requests through the verifier for debugging and demos. |
+| Export reports | Exports Markdown, JSONL, and CSV-style summaries for audits. |
+| Safe fallback responses | Avoids silently returning rejected answers when retries fail. |
+| Manual override | Allows a human to approve, reject, edit, or retry responses. |
+| Offline local mode | Works with local Gemma 4 models through Ollama or llama.cpp. |
+| Multilingual validation | Supports Arabic-English validation for more inclusive workflows. |
+| Strictness levels | Supports relaxed, medium, high, and critical modes. |
+| Endpoint templates | Gives starting points for OpenAI APIs, Ollama, llama.cpp, local agents, tutors, and coding assistants. |
+| Request search | Searches by endpoint, prompt, verdict, date, profile, and risk level. |
+| Live alerts | Warns when rejection spikes, endpoints fail, judges fail, review is needed, or retries are exhausted. |
+| Privacy mode | Stores metadata only when full prompt storage is not acceptable. |
+| Demo mode | Shows the reject-repair-approve loop without requiring a production endpoint. |
+
+### 39.1 Feature notes, line by line
+
+1. First-run setup wizard
+   - Practical value: Prevents users from entering the dashboard with a broken judge setup.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+2. Backend picker
+   - Practical value: Lets users choose Ollama, llama.cpp, LiteRT, Unsloth, or a manual endpoint.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+3. Hardware check
+   - Practical value: Shows OS, CPU architecture, RAM, disk, GPU hints, installed tools, and free ports where detectable.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+4. Gemma model picker
+   - Practical value: Explains small, balanced, large, and custom model choices without pretending every name is guaranteed real.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+5. Ollama pull helper
+   - Practical value: Guides `ollama pull <model>` and allows users to skip when the model already exists.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+6. Judge schema test
+   - Practical value: Refuses to trust a judge that cannot produce valid verdict JSON.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+7. Sanity verdict test
+   - Practical value: Checks that the judge rejects an obviously wrong answer and approves a clearly correct one.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+8. Proxy health test
+   - Practical value: Starts a temporary proxy and verifies receive, forward, capture, judge, and log behavior.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+9. Endpoint watch mode
+   - Practical value: Lets any OpenAI-compatible endpoint sit behind the local Witness proxy.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+10. Auto prompt repair
+   - Practical value: Turns rejection reasons into stricter retry instructions without changing user intent.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+11. Retry chain viewer
+   - Practical value: Shows original request, rejected response, judge reason, repaired prompt, retry response, and final result.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+12. Human review queue
+   - Practical value: Stops risky or uncertain responses instead of forcing unsafe automation.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+13. Endpoint health checks
+   - Practical value: Tests upstream connectivity, auth, local proxy port, and judging behavior.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+14. Secret redaction
+   - Practical value: Hides API keys and auth headers in the TUI and logs.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+15. Per-endpoint profiles
+   - Practical value: Lets each endpoint use a different validation style and strictness level.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+16. Approval analytics
+   - Practical value: Shows approval rate by endpoint and profile.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+17. Replay requests
+   - Practical value: Reruns old requests through the verifier for debugging and demos.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+18. Export reports
+   - Practical value: Exports Markdown, JSONL, and CSV-style summaries for audits.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+19. Safe fallback responses
+   - Practical value: Avoids silently returning rejected answers when retries fail.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+20. Manual override
+   - Practical value: Allows a human to approve, reject, edit, or retry responses.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+21. Offline local mode
+   - Practical value: Works with local Gemma 4 models through Ollama or llama.cpp.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+22. Multilingual validation
+   - Practical value: Supports Arabic-English validation for more inclusive workflows.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+23. Strictness levels
+   - Practical value: Supports relaxed, medium, high, and critical modes.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+24. Endpoint templates
+   - Practical value: Gives starting points for OpenAI APIs, Ollama, llama.cpp, local agents, tutors, and coding assistants.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+25. Request search
+   - Practical value: Searches by endpoint, prompt, verdict, date, profile, and risk level.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+26. Live alerts
+   - Practical value: Warns when rejection spikes, endpoints fail, judges fail, review is needed, or retries are exhausted.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+27. Privacy mode
+   - Practical value: Stores metadata only when full prompt storage is not acceptable.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+28. Demo mode
+   - Practical value: Shows the reject-repair-approve loop without requiring a production endpoint.
+   - Demo angle: show it in the TUI, then show the matching audit event.
+   - Failure behavior: do not hide failure; show a fix, retry path, or review path.
+
+## 40. Possibility map
+
+### 40.1 School district AI tutor firewall
+
+Route tutor responses through Education and Arabic-English Multilingual profiles.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.2 Clinic information kiosk verifier
+
+Use Medical profile with human review fallback for high-risk outputs.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.3 Disaster field laptop
+
+Run local Gemma 4 through Ollama or llama.cpp and store audit logs offline.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.4 Developer tool safety layer
+
+Watch coding agents and block risky shell commands or incomplete code explanations.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.5 Research assistant verifier
+
+Require uncertainty, citations, and clear separation between fact and speculation.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.6 Finance assistant guardrail
+
+Escalate investment-like advice and require cautious language.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.7 Legal intake helper
+
+Reject jurisdiction-free legal conclusions and send risky outputs to review.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.8 Low-resource community deployment
+
+Use terminal UI, local inference, and privacy mode on shared machines.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.9 Model evaluation harness
+
+Replay stored requests across judge backends and compare verdicts.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+### 40.10 Hackathon demo mode
+
+Show a bad answer, a rejection, a repaired retry, and an approved final response in under three minutes.
+
+- Best profile: choose the domain-specific profile first, then tighten strictness if failures are costly.
+- Best fallback: use human review when the domain is high risk.
+- Best demo shot: show the live stream beside the verdict panel.
+
+## 41. API and schema reference
+
+### 41.1 OpenAI-compatible chat request
+
+```json
+{
+  "model": "gpt-5.5",
+  "messages": [
+    {"role": "system", "content": "You are concise."},
+    {"role": "user", "content": "Explain TLS in simple terms."}
+  ],
+  "temperature": 0.2
+}
+```
+
+### 41.2 Witness judge verdict
+
+```json
+{
+  "verdict": "APPROVED",
+  "confidence": 0.92,
+  "safety_score": 95,
+  "usefulness_score": 91,
+  "prompt_alignment_score": 94,
+  "correctness_risk": "low",
+  "rejection_reason": "",
+  "suggested_fix": "",
+  "improved_prompt_instruction": "",
+  "requires_human_review": false
+}
+```
+
+### 41.3 Endpoint fields
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Required | Human-readable endpoint name. |
+| `enabled` | Required | Whether the proxy route should accept traffic. |
+| `upstream_url` | Required | Real API base URL. |
+| `local_proxy_url` | Required | Local URL the user configures in the original app. |
+| `model` | Required | Upstream model name. |
+| `profile` | Required | Validation profile. |
+| `retry_limit` | Optional | Maximum auto-repair attempts. |
+| `strictness` | Optional | relaxed, medium, high, or critical. |
+| `fallback_mode` | Optional | human_review, safe_response, or error. |
+
+## 42. Troubleshooting guide
+
+| Symptom | Fix |
+|---|---|
+| The setup wizard cannot find Ollama. | Install Ollama, restart the shell, then run `command -v ollama`. |
+| The model pull fails. | Check the model name, disk space, and Ollama service status. |
+| Judge output is not JSON. | Use a stricter judge prompt, lower temperature, or switch to the fine-tuned adapter. |
+| The proxy port is busy. | Pick another local proxy port and update the endpoint config. |
+| The upstream endpoint rejects auth. | Check the API key environment variable and auth header mapping. |
+| Latency is too high. | Use a smaller judge model, lower retry limit, or run on stronger hardware. |
+| Too many outputs go to human review. | Lower strictness or tune the profile criteria. |
+| Bad outputs are approved. | Increase strictness, improve the judge prompt, or use the fine-tuned adapter. |
+| Logs are too sensitive. | Enable privacy mode and store metadata only. |
+| Streaming does not work yet. | Use non-streaming chat completions for the MVP; streaming is a later roadmap item. |
+
+## 43. Roadmap
+
+| Roadmap item | Why |
+|---|---|
+| Streaming support | Add streaming OpenAI-compatible response verification with buffered or chunk-aware judging. |
+| LiteRT production path | Ship a clearer edge classifier flow for mobile and small devices. |
+| Profile editor | Let users write profile rules from inside the TUI. |
+| Benchmark suite | Compare judges on false approvals, false rejections, latency, and retry success. |
+| Policy packs | Add downloadable packs for schools, clinics, coding teams, and disaster response. |
+| Signed audit exports | Add tamper-evident reports for serious review workflows. |
+
+## 44. Expanded operator checklist
+
+### Before the demo
+
+- [ ] Clone the repository.
+- [ ] Build the release binary.
+- [ ] Install or start Ollama.
+- [ ] Pull the selected Gemma model.
+- [ ] Download the fine-tuned adapter if using the Unsloth path.
+- [ ] Run `the-witness doctor`.
+- [ ] Run `the-witness model test`.
+- [ ] Prepare one demo endpoint.
+- [ ] Prepare one bad-answer test case.
+- [ ] Prepare one approved-answer test case.
+- [ ] Open the TUI in a readable terminal size.
+
+### During the demo
+
+- [ ] Show the setup wizard.
+- [ ] Show backend selection.
+- [ ] Show model selection.
+- [ ] Show judge sanity tests.
+- [ ] Show the dashboard.
+- [ ] Add or reveal a watched endpoint.
+- [ ] Send a request through the proxy.
+- [ ] Show the live stream.
+- [ ] Open the verdict panel.
+- [ ] Open the prompt repair panel.
+- [ ] Show the final approved response.
+- [ ] Open the audit log.
+
+### After the demo
+
+- [ ] Export the Markdown report.
+- [ ] Show the GitHub repository.
+- [ ] Show the Hugging Face model card.
+- [ ] Show the Colab training notebook.
+- [ ] Mention limitations clearly.
+- [ ] Mention the next roadmap step.
+
+## 45. Extended command examples
+
+### 45.1 Build debug binary
+
+```bash
+cargo build
+./target/debug/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.2 Build release binary
+
+```bash
+cargo build --release
+./target/release/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.3 Run with custom config dir
+
+```bash
+mkdir -p /tmp/witness-config
+WITNESS_CONFIG_DIR=/tmp/witness-config the-witness setup
+WITNESS_CONFIG_DIR=/tmp/witness-config the-witness start
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.4 Run with debug logs
+
+```bash
+RUST_LOG=debug the-witness start
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.5 Check model registry
+
+```bash
+the-witness model list
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.6 Download adapter
+
+```bash
+python -m pip install -U huggingface_hub
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.7 Ollama judge smoke test
+
+```bash
+ollama pull gemma4:e2b
+the-witness model test --backend ollama --model gemma4:e2b
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.8 Endpoint list and test
+
+```bash
+the-witness endpoint list
+the-witness endpoint test "Codex"
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.9 Disable noisy endpoint
+
+```bash
+the-witness endpoint disable "Codex"
+the-witness endpoint list
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.10 Enable endpoint again
+
+```bash
+the-witness endpoint enable "Codex"
+the-witness endpoint test "Codex"
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.11 Export request report
+
+```bash
+the-witness export <request-id> --format markdown
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.12 Replay a request
+
+```bash
+the-witness replay <request-id>
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.13 Build debug binary
+
+```bash
+cargo build
+./target/debug/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.14 Build release binary
+
+```bash
+cargo build --release
+./target/release/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.15 Run with custom config dir
+
+```bash
+mkdir -p /tmp/witness-config
+WITNESS_CONFIG_DIR=/tmp/witness-config the-witness setup
+WITNESS_CONFIG_DIR=/tmp/witness-config the-witness start
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.16 Run with debug logs
+
+```bash
+RUST_LOG=debug the-witness start
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.17 Check model registry
+
+```bash
+the-witness model list
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.18 Download adapter
+
+```bash
+python -m pip install -U huggingface_hub
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.19 Ollama judge smoke test
+
+```bash
+ollama pull gemma4:e2b
+the-witness model test --backend ollama --model gemma4:e2b
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.20 Endpoint list and test
+
+```bash
+the-witness endpoint list
+the-witness endpoint test "Codex"
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.21 Disable noisy endpoint
+
+```bash
+the-witness endpoint disable "Codex"
+the-witness endpoint list
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.22 Enable endpoint again
+
+```bash
+the-witness endpoint enable "Codex"
+the-witness endpoint test "Codex"
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.23 Export request report
+
+```bash
+the-witness export <request-id> --format markdown
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.24 Replay a request
+
+```bash
+the-witness replay <request-id>
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.25 Build debug binary
+
+```bash
+cargo build
+./target/debug/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.26 Build release binary
+
+```bash
+cargo build --release
+./target/release/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.27 Run with custom config dir
+
+```bash
+mkdir -p /tmp/witness-config
+WITNESS_CONFIG_DIR=/tmp/witness-config the-witness setup
+WITNESS_CONFIG_DIR=/tmp/witness-config the-witness start
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.28 Run with debug logs
+
+```bash
+RUST_LOG=debug the-witness start
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.29 Check model registry
+
+```bash
+the-witness model list
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.30 Download adapter
+
+```bash
+python -m pip install -U huggingface_hub
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.31 Ollama judge smoke test
+
+```bash
+ollama pull gemma4:e2b
+the-witness model test --backend ollama --model gemma4:e2b
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.32 Endpoint list and test
+
+```bash
+the-witness endpoint list
+the-witness endpoint test "Codex"
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.33 Disable noisy endpoint
+
+```bash
+the-witness endpoint disable "Codex"
+the-witness endpoint list
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.34 Enable endpoint again
+
+```bash
+the-witness endpoint enable "Codex"
+the-witness endpoint test "Codex"
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.35 Export request report
+
+```bash
+the-witness export <request-id> --format markdown
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.36 Replay a request
+
+```bash
+the-witness replay <request-id>
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+### 45.37 Build debug binary
+
+```bash
+cargo build
+./target/debug/the-witness --help
+```
+
+Use this when you need a repeatable terminal step during development, judging, or the live demo.
+
+## 46. What to show judges if time is short
+
+1. Show the GitHub repository.
+2. Show the install command.
+3. Show the TUI setup wizard.
+4. Show the model selection screen.
+5. Show the judge JSON sanity test.
+6. Show one watched endpoint.
+7. Show one rejected response.
+8. Show one repaired prompt.
+9. Show one approved retry.
+10. Show the audit log.
+11. Show the Hugging Face fine-tuned model card.
+12. Say plainly that The Witness is a local verification layer, not a chatbot.
+
+## 47. Extra technical appendix: practical build notes
+
+This appendix adds the last layer of hands-on detail: the small things that make a demo easier to run, debug, and explain under pressure.
+
+### 47.1 Repository orientation
+
+| Path | What it is for |
+|---|---|
+| `src/main.rs` | Application entry point. |
+| `src/cli.rs` | CLI command definitions and command routing. |
+| `src/config.rs` | Config loading, saving, and defaults. |
+| `src/setup/` | Setup wizard, doctor checks, hardware checks, model tests, and install helpers. |
+| `src/proxy/` | OpenAI-compatible proxy server and request forwarding. |
+| `src/judge/` | Gemma judge clients and verdict schema handling. |
+| `src/repair/` | Prompt repair logic after disapproval. |
+| `src/profiles/` | Validation profiles for domains such as coding, education, medical, finance, and multilingual use. |
+| `src/tui/` | Ratatui screens, panels, app state, and rendering. |
+| `src/storage/` | JSONL and SQLite-oriented storage modules. |
+| `models/models.toml` | Model registry, including the Hugging Face LoRA adapter. |
+| `training/` | Fine-tuning notebooks, dataset, and validation scripts. |
+| `scripts/` | Installer, verification, and demo helpers. |
+| `docs/` | Architecture notes, setup notes, track notes, and this writeup. |
+
+### 47.2 Build matrix
+
+| Mode | Command | Use it when |
+|---|---|---|
+| Local debug | `cargo build` | Fast compile while editing. |
+| Local release | `cargo build --release` | Best for demos and real use. |
+| Format check | `cargo fmt --check` | Keeps Rust style consistent. |
+| Unit tests | `cargo test` | Checks library and module behavior. |
+| Smoke verify | `scripts/verify.sh` | Runs the project verification path where available. |
+| Doctor | `the-witness doctor` | Checks runtime readiness, models, ports, logs, and endpoints. |
+
+### 47.3 Judge backend decision table
+
+| Backend | Best use | Setup requirement | Submission angle |
+|---|---|---|---|
+| Ollama | Fastest path for most demos | Install Ollama and pull a configured Gemma model. | Ollama technology track. |
+| llama.cpp | Offline or smaller machines | Run a compatible llama.cpp server. | Resource-constrained technology track. |
+| LiteRT | Edge-oriented classifier experiments | Provide a LiteRT model path and run the classifier test. | LiteRT technology track. |
+| Unsloth | Custom trained judge | Download the Hugging Face LoRA adapter and load it with Gemma 4 E2B. | Unsloth technology track. |
+| Manual endpoint | Existing local OpenAI-compatible server | Provide URL, model name, and optional auth. | Advanced local deployments. |
+
+### 47.4 Environment preparation checklist
+
+- [ ] Rust toolchain is installed.
+- [ ] Git is installed.
+- [ ] Curl is installed.
+- [ ] Build tools are installed.
+- [ ] OpenSSL development headers are available on Linux.
+- [ ] Ollama is installed if using the default path.
+- [ ] The selected Gemma model is pulled or otherwise reachable.
+- [ ] Hugging Face CLI is installed if using the custom LoRA adapter.
+- [ ] The local proxy port is free.
+- [ ] The upstream endpoint is reachable.
+- [ ] The upstream API key is stored in an environment variable.
+- [ ] The terminal is large enough to show the TUI clearly.
+- [ ] The config path is known.
+- [ ] Logs are writable.
+- [ ] Demo prompts are ready before recording.
+
+### 47.5 Good demo prompts
+
+| Demo | Prompt |
+|---|---|
+| Math sanity | Explain why 2 + 2 = 4 in one sentence. |
+| Coding safety | Write a shell command to recursively delete build artifacts but avoid deleting source files. |
+| Education clarity | Explain photosynthesis to a 12-year-old in five sentences. |
+| Medical caution | What should someone do if they have chest pain? |
+| Finance caution | Should I put all my savings into one stock today? |
+| Arabic-English | اشرح معنى rate limiting بالعربية والإنجليزية باختصار. |
+| Research honesty | Summarize what is known and unknown about a hypothetical new material with no citations provided. |
+
+### 47.6 Fallback behavior guide
+
+| Fallback | Best for | Behavior |
+|---|---|---|
+| `human_review` | Best for high-risk domains. | Pauses the answer and asks a person to decide. |
+| `safe_response` | Best for demos or low-risk user-facing apps. | Returns a safe fallback instead of a rejected answer. |
+| `error` | Best for developer tools and tests. | Returns an explicit failure so the caller knows nothing was approved. |
+
+### 47.7 Strictness guide
+
+| Strictness | Use it for | Behavior |
+|---|---|---|
+| `relaxed` | Creative drafts, brainstorming, low-risk exploration. | More tolerant of style and minor incompleteness. |
+| `medium` | Default everyday use. | Balances usefulness and caution. |
+| `high` | Coding, education, finance-like workflows, public content. | Rejects more incomplete or risky outputs. |
+| `critical` | Medical, legal, disaster response, irreversible actions. | Escalates uncertainty and high-risk claims to human review. |
+
+### 47.8 What makes the project technically real
+
+- The repository is public.
+- The Rust project builds from source.
+- The TUI is terminal-first, not a web mockup.
+- The proxy path is OpenAI-compatible for the MVP.
+- The judge schema is explicit.
+- The setup wizard tests model readiness.
+- The doctor command checks runtime conditions.
+- The model registry includes the Hugging Face adapter.
+- The custom model link is public.
+- The fine-tuning notebook link is public.
+- The project distinguishes complete work from roadmap work.
+- The README explains limitations and setup steps.
+
+### 47.9 Copy-paste demo script
+
+```bash
+git clone https://github.com/PLASMA-FR/the-witness.git
+cd the-witness
+cargo build --release
+./target/release/the-witness setup
+./target/release/the-witness doctor
+./target/release/the-witness model list
+./target/release/the-witness model test --backend ollama --model gemma4:e2b
+./target/release/the-witness endpoint add --name "Codex" --upstream "https://api.openai.com/v1" --local "http://localhost:8787/v1" --profile coding --retry-limit 4 --strictness high
+./target/release/the-witness endpoint list
+./target/release/the-witness start
+```
+
+### 47.10 What to say in the video while commands run
+
+1. The Witness sits between an AI app and the model endpoint it already uses.
+2. The app sends the same OpenAI-compatible request, but to localhost.
+3. The Witness forwards that request, captures the candidate answer, and asks Gemma 4 to judge it.
+4. If the answer is good, the user never notices the firewall.
+5. If the answer is bad, The Witness blocks it before it reaches the user.
+6. The rejected answer becomes part of a retry chain, not an invisible failure.
+7. The repair prompt keeps the original user intent and adds corrective instructions.
+8. The logs show what happened and why.
+9. The custom Gemma 4 E2B LoRA adapter shows how the judge can be adapted for structured verification.
+10. This is local-first safety infrastructure for real AI workflows.
