@@ -215,6 +215,9 @@ See `docs/tracks.md` for details.
 
 ## Project docs
 
+- `docs/README.md` — docs index.
+- `docs/commands.md` — full command and operations guide with install, setup, model, endpoint, proxy, Blackbox, fine-tuning, logs, troubleshooting, and development commands.
+- `docs/features.md` — full feature guide and honest MVP status table.
 - `docs/architecture.md` — architecture and data flow.
 - `docs/setup.md` — setup and health checks.
 - `docs/kaggle_cli.md` — Kaggle auth/upload/download notes.
