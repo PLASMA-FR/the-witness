@@ -1,0 +1,32 @@
+# Rust build output
+target/
+
+# Secrets and local env
+.env
+*.env
+kaggle.json
+.kaggle/
+
+# Model weights / generated model artifacts
+*.safetensors
+*.gguf
+models/*
+!models/models.toml
+!models/remote_models.toml
+training/outputs/*
+training/checkpoints/*
+wandb/
+
+# OS/editor/cache junk
+.DS_Store
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+*.pyc
+
+# Local logs and temporary runtime output
+*.log
+logs/*.jsonl
+
+.venv-backends/
+*.zip

@@ -1,0 +1,12 @@
+pub mod cli;
+pub mod config;
+pub mod endpoints;
+pub mod judge;
+pub mod models;
+pub mod profiles;
+pub mod proxy;
+pub mod repair;
+pub mod setup;
+pub mod storage;
+pub mod tui;
+pub mod types;

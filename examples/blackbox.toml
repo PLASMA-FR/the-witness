@@ -1,0 +1,14 @@
+[[endpoints]]
+name = "Blackbox Grok Code"
+enabled = true
+upstream_url = "https://api.blackbox.ai/v1"
+local_proxy_url = "http://localhost:8787/v1"
+model = "blackboxai/x-ai/grok-code-fast-1:free"
+profile = "coding"
+retry_limit = 4
+strictness = "high"
+fallback_mode = "human_review"
+
+[endpoints.auth]
+type = "bearer_env"
+env = "BLACKBOX_API_KEY"

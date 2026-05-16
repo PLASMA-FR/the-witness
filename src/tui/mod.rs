@@ -1,0 +1,12 @@
+pub mod app;
+pub mod dashboard;
+pub mod endpoints;
+pub mod inspector;
+pub mod logs;
+pub mod model_manager;
+pub mod repair_panel;
+pub mod requests;
+pub mod review;
+pub mod settings;
+pub mod setup_wizard;
+pub mod verdict;

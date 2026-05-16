@@ -1,0 +1,4 @@
+name="Local Tutor"
+upstream_url="http://localhost:8000/v1"
+local_proxy_url="http://localhost:8788/v1"
+profile="education"

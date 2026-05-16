@@ -1,0 +1,70 @@
+[[models]]
+id = "gemma4-e2b-ollama"
+display_name = "Gemma 4 E2B via Ollama"
+backend = "ollama"
+base_model = "gemma4:e2b"
+model = "gemma4:e2b"
+source = "ollama"
+installed = false
+
+[[models]]
+id = "gemma4-e4b-ollama"
+display_name = "Gemma 4 E4B via Ollama"
+backend = "ollama"
+base_model = "gemma4:e4b"
+model = "gemma4:e4b"
+source = "ollama"
+installed = false
+
+[[models]]
+id = "witness-gemma4-e2b-judge"
+display_name = "Fine-tuned Witness Gemma 4 E2B Judge"
+backend = "unsloth"
+base_model = "gemma4:e2b"
+model = "witness-gemma4-e2b-judge"
+source = "kaggle"
+slug = "plasmafr/witness-gemma4-e2b-judge"
+local_path = "./models/witness-gemma4-e2b-judge"
+installed = false
+
+[[models]]
+id = "custom-ollama-model"
+display_name = "Custom Ollama model name"
+backend = "ollama"
+model = "custom"
+source = "ollama"
+installed = false
+
+[[models]]
+id = "llamacpp-custom"
+display_name = "llama.cpp backend"
+backend = "llama.cpp"
+model = "./models/gemma4.gguf"
+source = "manual"
+installed = false
+
+[[models]]
+id = "litert-custom"
+display_name = "LiteRT backend"
+backend = "litert"
+model = "./models/witness-gemma4-e2b-litert"
+source = "manual"
+installed = false
+
+[[models]]
+id = "unsloth-local-path"
+display_name = "Unsloth local fine-tuned model path"
+backend = "unsloth"
+base_model = "gemma4:e2b"
+model = "./models/witness-gemma4-e2b-judge"
+source = "manual"
+local_path = "./models/witness-gemma4-e2b-judge"
+installed = false
+
+[[models]]
+id = "manual-openai-compatible"
+display_name = "Manual OpenAI-compatible judge endpoint"
+backend = "manual"
+model = "local-gemma-judge"
+source = "manual"
+installed = false

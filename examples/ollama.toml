@@ -1,0 +1,5 @@
+[gemma]
+backend="ollama"
+model="gemma4:e2b"
+url="http://localhost:11434"
+setup_completed=false

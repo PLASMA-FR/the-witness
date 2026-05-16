@@ -1,0 +1,4 @@
+name="Codex"
+upstream_url="https://api.openai.com/v1"
+local_proxy_url="http://localhost:8787/v1"
+profile="coding"
