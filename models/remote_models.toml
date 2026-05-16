@@ -1,6 +1,6 @@
 [remote_models.witness_gemma4_e2b_judge]
 name = "Fine-tuned Witness Gemma 4 E2B Judge"
 backend = "unsloth"
-source = "kaggle"
-slug = "plasmafr/witness-gemma4-e2b-judge"
+source = "huggingface"
+slug = "ahmadalfakeh/witness-gemma4-e2b-judge"
 local_dir = "./models/witness-gemma4-e2b-judge"

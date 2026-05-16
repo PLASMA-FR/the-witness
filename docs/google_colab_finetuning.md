@@ -10,8 +10,9 @@ The notebooks favor reliability over speed. They use smaller sequence length, ba
 
 ## Notebooks
 
-- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended first run.
-- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — larger optional run; may need even lower settings.
+- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended E2B adapter workflow.
+- Colab notebook link used for the current custom adapter: https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing
+- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — experimental template only. E4B was too large for the available runtime and is not the published custom model.
 
 Each notebook contains exactly one code cell. Run that one cell after setting the Colab runtime and Hugging Face settings.
 
@@ -23,7 +24,7 @@ Each notebook contains exactly one code cell. Run that one cell after setting th
 4. Set `HF_REPO_ID` near the top of the single cell, for example:
 
 ```python
-os.environ.setdefault("HF_REPO_ID", "your-name/witness-gemma4-e2b-judge")
+os.environ.setdefault("HF_REPO_ID", "ahmadalfakeh/witness-gemma4-e2b-judge")
 ```
 
 5. Run the one cell.
@@ -101,13 +102,19 @@ os.environ["WITNESS_VAL_LIMIT"] = "100"
 
 ## Hugging Face output
 
+The current custom E2B adapter has been published to:
+
+```text
+https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
+```
+
 The one cell uploads to `HF_REPO_ID` using `HF_TOKEN`:
 
 ```text
 https://huggingface.co/<HF_REPO_ID>
 ```
 
-Default artifact type is LoRA adapter + tokenizer + metrics. Merged 16-bit saving is disabled by default because it can exceed Colab RAM/VRAM limits. Enable only if you know the runtime can handle it:
+Default artifact type is LoRA adapter + tokenizer + metrics. This is intentionally not the full multi-GB Gemma base model. At runtime, load the original Gemma 4 E2B base model (`google/gemma-4-e2b`, or the configured equivalent) and attach the adapter. Merged 16-bit saving is disabled by default because it can exceed Colab RAM/VRAM limits. Enable only if you know the runtime can handle it:
 
 ```python
 os.environ["WITNESS_SAVE_MERGED"] = "1"
@@ -117,10 +124,10 @@ os.environ["WITNESS_SAVE_MERGED"] = "1"
 
 ```bash
 cd /home/admin/Gemma/witness
-hf download your-name/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
+hf download ahmadalfakeh/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
 ./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 
 ## Honest status
 
-The repo contains one-cell Colab T4 notebooks and dataset. The notebooks were locally validated for JSON structure and Python syntax, and project tests pass. They have not been executed on a live Google Colab T4 from this machine. The trained Hugging Face model exists only after you run the notebook and the upload succeeds.
+The current E2B LoRA adapter is published at https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge. The E4B adapter is not published/trained for this project because it was too large for the available runtime. Local repository validation still only checks notebook JSON/syntax and project tests; it does not prove that this machine ran Colab training.

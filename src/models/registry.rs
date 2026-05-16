@@ -76,12 +76,12 @@ impl ModelRegistry {
                 },
                 ModelEntry {
                     id: "witness-gemma4-e2b-judge".into(),
-                    display_name: "Fine-tuned Witness Gemma 4 E2B Judge".into(),
+                    display_name: "Custom Fine-tuned Witness Gemma 4 E2B Judge LoRA Adapter".into(),
                     backend: "unsloth".into(),
-                    base_model: "gemma4:e2b".into(),
+                    base_model: "google/gemma-4-e2b".into(),
                     model: "witness-gemma4-e2b-judge".into(),
-                    source: "kaggle".into(),
-                    slug: "plasmafr/witness-gemma4-e2b-judge".into(),
+                    source: "huggingface".into(),
+                    slug: "ahmadalfakeh/witness-gemma4-e2b-judge".into(),
                     local_path: "./models/witness-gemma4-e2b-judge".into(),
                     ..Default::default()
                 },

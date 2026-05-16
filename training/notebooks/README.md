@@ -7,7 +7,7 @@ Primary runtime: one Google Colab T4 GPU with about 15 GiB GPU VRAM and about 12
 Files:
 
 - `finetune_gemma4_e2b_unsloth.ipynb` — recommended first run; one code cell fine-tunes `witness-gemma4-e2b-judge`.
-- `finetune_gemma4_e4b_unsloth.ipynb` — stronger/larger optional run; one code cell fine-tunes `witness-gemma4-e4b-judge`.
+- `finetune_gemma4_e4b_unsloth.ipynb` — experimental template only. E4B was too large for the available runtime and is not the published custom model.
 
 ## Why one cell?
 
@@ -32,7 +32,7 @@ The user can open the notebook, select T4 GPU, set Hugging Face variables/secret
 4. In the top of the one cell, set:
 
 ```python
-os.environ.setdefault("HF_REPO_ID", "your-name/witness-gemma4-e2b-judge")
+os.environ.setdefault("HF_REPO_ID", "ahmadalfakeh/witness-gemma4-e2b-judge")
 ```
 
 or set `HF_REPO_ID` as an environment variable before running.
@@ -68,7 +68,7 @@ WITNESS_SAVE_MERGED=0
 The one cell requires:
 
 - `HF_TOKEN` from Colab Secrets or environment.
-- `HF_REPO_ID`, for example `your-name/witness-gemma4-e2b-judge`.
+- `HF_REPO_ID`, for example `ahmadalfakeh/witness-gemma4-e2b-judge`.
 
 The cell calls `create_repo(..., exist_ok=True)` and `HfApi.upload_folder(...)` using the token. When complete, it prints:
 
@@ -80,7 +80,7 @@ DONE: uploaded to https://huggingface.co/<HF_REPO_ID>
 
 ```bash
 cd /home/admin/Gemma/witness
-hf download your-name/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
+hf download ahmadalfakeh/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
 ./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 

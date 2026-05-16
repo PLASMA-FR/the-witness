@@ -18,12 +18,12 @@ installed = false
 
 [[models]]
 id = "witness-gemma4-e2b-judge"
-display_name = "Fine-tuned Witness Gemma 4 E2B Judge"
+display_name = "Custom Fine-tuned Witness Gemma 4 E2B Judge LoRA Adapter"
 backend = "unsloth"
-base_model = "gemma4:e2b"
+base_model = "google/gemma-4-e2b"
 model = "witness-gemma4-e2b-judge"
-source = "kaggle"
-slug = "plasmafr/witness-gemma4-e2b-judge"
+source = "huggingface"
+slug = "ahmadalfakeh/witness-gemma4-e2b-judge"
 local_path = "./models/witness-gemma4-e2b-judge"
 installed = false
 

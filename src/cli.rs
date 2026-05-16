@@ -78,7 +78,7 @@ pub struct ModelInstall {
 }
 #[derive(Args, Debug)]
 pub struct ModelDownload {
-    #[arg(long, default_value = "kaggle")]
+    #[arg(long, default_value = "huggingface")]
     pub source: String,
     #[arg(long)]
     pub model: String,
@@ -252,14 +252,22 @@ async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
             Ok(())
         }
         ModelCommands::Download(dl) => {
-            if dl.source != "kaggle" {
-                anyhow::bail!("only --source kaggle is supported for model download in the MVP");
-            }
+            let requested_source = dl.source;
             let registry = crate::models::registry::ModelRegistry::load_or_default(root)?;
             let entry = registry
                 .find(&dl.model)
                 .context("model not found in models/models.toml")?
                 .clone();
+            if requested_source != entry.source
+                && !(requested_source == "hf" && entry.source == "huggingface")
+            {
+                anyhow::bail!(
+                    "model {} is registered with source {}, not {}",
+                    dl.model,
+                    entry.source,
+                    requested_source
+                );
+            }
             let out = crate::models::installer::install_model(&entry, root).await?;
             let mut registry = registry;
             registry.mark_installed(&dl.model, true, "installed/downloaded");

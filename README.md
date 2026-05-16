@@ -109,31 +109,38 @@ the-witness replay <request-id>
 the-witness export <request-id> --format markdown
 ```
 
-## Fine-tuned one-cell Colab T4 GPU model
+## Fine-tuned custom E2B LoRA adapter
 
-Confirmed Kaggle target slug:
+The current custom Witness judge is the user-trained Gemma 4 E2B LoRA adapter on Hugging Face:
 
 ```text
-plasmafr/witness-gemma4-e2b-judge
+https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
 ```
 
-Download after you have actually trained and uploaded the model:
+It is not stored in Kaggle. It is an adapter-only LoRA artifact, not a full multi-GB base model. To use it, load the original Gemma 4 E2B base model (`google/gemma-4-e2b`, or the configured equivalent if the public model ID changes) and attach this adapter.
+
+Download the adapter:
 
 ```bash
-the-witness model download --source kaggle --model witness-gemma4-e2b-judge
-the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
+the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 
-Honest status: one-cell Colab T4 GPU notebooks and pipeline exist, but the model is not trained or uploaded until you run the Google Colab notebook with `HF_TOKEN`/`HF_REPO_ID` and the Hugging Face upload succeeds.
+E2B fine-tuning notebook used for this adapter:
+
+```text
+https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing
+```
+
+E4B status: not published/trained for this project because it was too large for the available runtime. The E4B notebook remains as an experimental template only; the custom model registry points at the E2B LoRA adapter above.
 
 Fine-tuning assets:
 
-- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb`
-- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb`
+- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended E2B adapter workflow.
+- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — experimental template only; not the published custom model.
 - `training/dataset/witness_judge_train.jsonl`
 - `training/dataset/witness_judge_val.jsonl`
 - `witness_finetuning_pack.zip`
-
 The bundled dataset is larger than 10 MB and validates with:
 
 ```bash
@@ -221,7 +228,7 @@ See `docs/tracks.md` for details.
 - `docs/architecture.md` — architecture and data flow.
 - `docs/setup.md` — setup and health checks.
 - `docs/google_colab_finetuning.md` — one-cell Google Colab T4 GPU fine-tuning guide with explicit GPU VRAM/system RAM checks and Hugging Face upload.
-- `docs/kaggle_cli.md` — optional Kaggle auth/upload/download notes for artifact distribution after Colab training.
+- `docs/kaggle_cli.md` — legacy optional Kaggle notes; the current custom E2B LoRA adapter is on Hugging Face, not Kaggle.
 - `docs/tracks.md` — technology track mapping.
 - `docs/demo_script.md` — demo flow.
 - `docs/hackathon_writeup.md` — hackathon positioning.

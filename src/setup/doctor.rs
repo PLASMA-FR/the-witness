@@ -1,6 +1,6 @@
 use crate::{
     config::WitnessConfig,
-    models::{kaggle, registry::ModelRegistry},
+    models::{huggingface, kaggle, registry::ModelRegistry},
     setup::{backends, hardware},
 };
 use anyhow::{Context, Result};
@@ -40,7 +40,7 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         "Default model: gemma4:e2b".into(),
         "Strong model: gemma4:e4b".into(),
         "Fine-tuning runtime: one-cell Google Colab T4 GPU with Unsloth 4-bit LoRA/QLoRA".into(),
-        "Optional Kaggle artifact slug: plasmafr/witness-gemma4-e2b-judge".into(),
+        "Custom fine-tuned LoRA adapter: https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge".into(),
         "Fallback: human_review".into(),
         pass(&format!("OS detected: {} {}", hw.os, hw.arch)),
         pass(&format!(
@@ -133,38 +133,38 @@ pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport
         } else {
             warn("Local proxy port 8787 is in use", "This is OK only if it is already The Witness; otherwise stop the process or choose another port.")
         },
-        if kaggle::kaggle_cli_available() {
-            pass("Kaggle CLI installed")
+        if huggingface::hf_cli_available() {
+            pass("Hugging Face CLI installed")
         } else {
             warn(
-                "Kaggle CLI missing/optional",
-                "Only install Kaggle CLI if you use optional Kaggle artifact upload/download after Colab training.",
+                "Hugging Face CLI missing/optional",
+                "Install with `python -m pip install -U huggingface_hub` if you want `the-witness model download` to fetch the LoRA adapter from the Hub.",
             )
         },
-        if kaggle::kaggle_credentials_available() {
-            pass("Kaggle CLI authenticated/credentials available")
+        if kaggle::kaggle_cli_available() {
+            warn("Kaggle CLI installed but not used for the current custom model", "The published E2B LoRA adapter is on Hugging Face, not Kaggle.")
         } else {
             warn(
-                "Kaggle credentials missing/optional",
-                "Only configure Kaggle credentials if you use optional Kaggle artifact upload/download after Colab training.",
+                "Kaggle CLI not configured",
+                "OK: the current custom E2B LoRA adapter is distributed via Hugging Face, not Kaggle.",
             )
         },
         if registry
             .find("witness-gemma4-e2b-judge")
-            .map(|m| m.slug.as_str())
-            == Some("plasmafr/witness-gemma4-e2b-judge")
+            .map(|m| (m.source.as_str(), m.slug.as_str()))
+            == Some(("huggingface", "ahmadalfakeh/witness-gemma4-e2b-judge"))
         {
-            pass("Kaggle model slug configured")
+            pass("Hugging Face LoRA adapter repo configured")
         } else {
             fail(
-                "Kaggle model slug not configured",
-                "Set slug to plasmafr/witness-gemma4-e2b-judge in models/models.toml.",
+                "Hugging Face LoRA adapter repo not configured",
+                "Set source=huggingface and slug=ahmadalfakeh/witness-gemma4-e2b-judge in models/models.toml.",
             )
         },
         if root.join("models/witness-gemma4-e2b-judge").exists() {
             pass("Fine-tuned Witness judge downloaded")
         } else if cfg.gemma.backend == "unsloth" || cfg.gemma.model == "witness-gemma4-e2b-judge" {
-            fail("Fine-tuned Witness judge not downloaded", "Run `the-witness model download --source kaggle --model witness-gemma4-e2b-judge`.")
+            fail("Fine-tuned Witness judge not downloaded", "Run `the-witness model download --source huggingface --model witness-gemma4-e2b-judge`.")
         } else {
             warn(
                 "Fine-tuned Witness judge not downloaded",

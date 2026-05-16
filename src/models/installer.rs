@@ -1,5 +1,5 @@
 use crate::{
-    models::{kaggle, registry::ModelEntry},
+    models::{huggingface, kaggle, registry::ModelEntry},
     setup::{backends::BackendKind, installer::install_backend},
 };
 use anyhow::{bail, Result};
@@ -17,6 +17,14 @@ pub async fn install_model(entry: &ModelEntry, root: &Path) -> Result<String> {
                 resolve(root, &entry.local_path)
             };
             kaggle::download_model(&entry.slug, &local)
+        }
+        "huggingface" | "hf" => {
+            let local = if entry.local_path.is_empty() {
+                root.join("models").join(&entry.id)
+            } else {
+                resolve(root, &entry.local_path)
+            };
+            huggingface::download_model(&entry.slug, &local)
         }
         "manual" => Ok("Manual model: configure URL/path in Settings, then run model test.".into()),
         _ if matches!(

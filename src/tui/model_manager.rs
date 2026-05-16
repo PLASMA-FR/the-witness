@@ -16,7 +16,7 @@ pub fn draw(f: &mut Frame, app: &App, area: Rect) {
     let mut lines = vec![
         "Model Manager — install/pull/download/test/set default/delete/open card/copy path/refresh".to_string(),
         "Columns: display name | backend | base model | source | installed | local path | status".to_string(),
-        "Actions via CLI: model list, model install, model test; optional Kaggle artifact download with model download --source kaggle".to_string(),
+        "Actions via CLI: model list, model install, model test; Hugging Face LoRA adapter download with model download --source huggingface".to_string(),
         "".to_string(),
     ];
     for m in registry.models {

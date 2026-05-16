@@ -25,15 +25,16 @@ fn final_default_config_uses_confirmed_ollama_models_and_profile_preferences() {
 }
 
 #[test]
-fn model_registry_uses_confirmed_tags_and_kaggle_slug() {
+fn model_registry_uses_confirmed_tags_and_huggingface_lora_adapter() {
     let registry = ModelRegistry::default_models();
     let e2b = registry.find("gemma4-e2b-ollama").unwrap();
     assert_eq!(e2b.model, "gemma4:e2b");
     let e4b = registry.find("gemma4-e4b-ollama").unwrap();
     assert_eq!(e4b.model, "gemma4:e4b");
     let ft = registry.find("witness-gemma4-e2b-judge").unwrap();
-    assert_eq!(ft.base_model, "gemma4:e2b");
-    assert_eq!(ft.slug, "plasmafr/witness-gemma4-e2b-judge");
+    assert_eq!(ft.base_model, "google/gemma-4-e2b");
+    assert_eq!(ft.source, "huggingface");
+    assert_eq!(ft.slug, "ahmadalfakeh/witness-gemma4-e2b-judge");
 }
 
 #[test]

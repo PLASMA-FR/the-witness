@@ -2,7 +2,7 @@
 
 This guide is the user-side completion checklist for The Witness after the Rust code has been built and tested.
 
-Important honesty note: the fine-tuned judge model is not trained or uploaded until you run the Google Colab T4 GPU notebook and publish or copy the trained artifact. Current status is: Colab notebook and pipeline ready, training/upload pending.
+Important honesty note: the E2B fine-tuned judge LoRA adapter is published on Hugging Face at https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge. It is adapter-only and must be loaded with the Gemma 4 E2B base model. Current status is: E2B adapter published; E4B was too large for the available runtime and is not published/trained.
 
 ## 1. Current project status
 
@@ -19,15 +19,14 @@ What is ready:
   - train: 12,000 rows, about 10.9 MB
   - validation: 1,500 rows, about 1.37 MB
   - total: about 12.28 MB / 11.71 MiB
-- The fine-tuned model registry entry points at `plasmafr/witness-gemma4-e2b-judge`.
+- The fine-tuned model registry entry points at `ahmadalfakeh/witness-gemma4-e2b-judge`.
 
-What is not done until you do it:
+What remains user-side:
 
-- The fine-tuned model is not trained.
-- The fine-tuned model is not uploaded.
-- The fine-tuned model is not downloadable/testable until you copy it from Colab/Drive, download it from Hugging Face Hub, or optionally upload it to Kaggle.
-- Ollama models must be pulled locally.
+- Download the published E2B LoRA adapter from Hugging Face on the machine where you will run The Witness.
+- Pull Ollama models locally if you use the Ollama backend.
 - Blackbox testing requires `BLACKBOX_API_KEY` in your shell environment.
+- If you want to produce a new adapter revision, rerun the E2B Colab notebook with your own `HF_TOKEN`/`HF_REPO_ID`.
 
 ## 2. Step 1 — Install local requirements
 
@@ -59,7 +58,7 @@ Failures that are normal before setup:
 - Ollama not running.
 - `gemma4:e2b` missing.
 - `gemma4:e4b` missing/optional.
-- Kaggle credentials missing; only required for optional Kaggle artifact upload/download.
+- Hugging Face CLI missing; only required for downloading the published E2B LoRA adapter.
 - Fine-tuned model not downloaded.
 - `BLACKBOX_API_KEY` not set.
 - Judge schema/model/proxy setup flags not passed.
@@ -237,7 +236,7 @@ WITNESS_SAVE_MERGED=0
 Before running the single cell, add a Hugging Face write token to Colab Secrets as `HF_TOKEN`, then set the target model repo near the top of the cell:
 
 ```python
-os.environ.setdefault("HF_REPO_ID", "your-name/witness-gemma4-e2b-judge")
+os.environ.setdefault("HF_REPO_ID", "ahmadalfakeh/witness-gemma4-e2b-judge")
 ```
 
 In the E2B notebook, verify or edit:
@@ -245,7 +244,7 @@ In the E2B notebook, verify or edit:
 ```python
 BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")
 OUTPUT_MODEL_NAME = "witness-gemma4-e2b-judge"
-HF_REPO_ID = "your-name/witness-gemma4-e2b-judge"
+HF_REPO_ID = "ahmadalfakeh/witness-gemma4-e2b-judge"
 ```
 
 If `google/gemma-4-e2b` is not the correct available public ID, replace it with the currently available Gemma 4 E2B model ID.
@@ -272,7 +271,7 @@ Do not claim the model is trained unless these outputs are produced by your note
 Target slug:
 
 ```text
-plasmafr/witness-gemma4-e2b-judge
+ahmadalfakeh/witness-gemma4-e2b-judge
 ```
 
 Preferred method:
@@ -281,14 +280,13 @@ Preferred method:
 - Confirm whether Hugging Face upload, Drive copy, or zip download succeeded.
 - Copy the final Hugging Face repo URL or local artifact path.
 
-Script method from the project root, after the notebook has produced a local output directory:
+The current published custom model is already on Hugging Face:
 
-```bash
-cd /home/admin/Gemma/witness
-./training/scripts/kaggle_upload_model.sh training/outputs/witness-gemma4-e2b-judge witness-gemma4-e2b-judge
+```text
+https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
 ```
 
-If running inside Colab, download the zip, copy from Google Drive, or use the notebook Hugging Face upload cell. Kaggle upload is optional after Colab training.
+If you create a new adapter revision, use the notebook Hugging Face upload flow with `HF_TOKEN` and `HF_REPO_ID`. Kaggle is not the storage location for the current custom model.
 
 Do not upload secrets. Do not commit model weights unless intentionally publishing them through a model registry.
 
@@ -301,14 +299,14 @@ cd /home/admin/Gemma/witness
 mkdir -p models/witness-gemma4-e2b-judge
 # Option A: copy the Colab/Drive output files into models/witness-gemma4-e2b-judge
 # Option B: download from Hugging Face Hub
-hf download your-name/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
+hf download ahmadalfakeh/witness-gemma4-e2b-judge --local-dir models/witness-gemma4-e2b-judge
 ./target/debug/the-witness model test --backend unsloth --model ./models/witness-gemma4-e2b-judge
 ```
 
-Optional Kaggle artifact path, only if you published the Colab output to Kaggle:
+Hugging Face adapter path for the published Colab output:
 
 ```bash
-./target/debug/the-witness model download --source kaggle --model witness-gemma4-e2b-judge
+./target/debug/the-witness model download --source huggingface --model witness-gemma4-e2b-judge
 ./target/debug/the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
 ```
 
@@ -316,8 +314,8 @@ If this fails, common causes are:
 
 - The Colab output was not copied/downloaded into the expected local path.
 - `HF_TOKEN`/Hub permissions are missing for private Hugging Face repos.
-- Kaggle credentials are missing for the optional Kaggle artifact path.
-- Optional Kaggle account cannot access the uploaded model/dataset.
+- Hugging Face CLI/token may be missing for private Hub access; the current repo URL is public if permissions allow.
+- Hugging Face account/network cannot access the adapter repo.
 - Model files are not compatible with the local inference path.
 - Local Unsloth inference server/path is not started or configured.
 - The test is still pointed at the default Ollama URL instead of a configured Unsloth backend.
@@ -332,7 +330,7 @@ If this fails, common causes are:
 
 2. Go to Model Manager or Settings.
 3. Select `Fine-tuned Witness Gemma 4 E2B Judge`.
-4. Copy from Colab/Drive or download from Hugging Face Hub; use Kaggle download only if you chose optional Kaggle artifact publishing.
+4. Copy from Colab/Drive or download from Hugging Face Hub; use Hugging Face download for the current published adapter.
 5. Test model.
 6. Set as default judge or assign per endpoint.
 7. Keep `human_review` fallback enabled.
@@ -393,23 +391,26 @@ Optional but recommended for coding/high-risk profiles:
 ollama pull gemma4:e4b
 ```
 
-### Kaggle credentials missing; only required for optional Kaggle artifact upload/download
+### Hugging Face CLI missing for adapter download
 
-Local method:
+Install the Hugging Face CLI if you want The Witness to download the published adapter automatically:
 
 ```bash
-mkdir -p ~/.kaggle
-cp kaggle.json ~/.kaggle/kaggle.json
-chmod 600 ~/.kaggle/kaggle.json
+python -m pip install -U huggingface_hub
+hf --help
 ```
 
-Or set Kaggle environment variables if your environment supports them.
+For private forks, authenticate with a token outside the repo. The current custom adapter URL is public if Hub permissions allow:
 
-### Optional Kaggle model not found
+```text
+https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
+```
+
+### Hugging Face adapter repo not found
 
 Confirm:
 
-- You uploaded to `plasmafr/witness-gemma4-e2b-judge`.
+- You uploaded to `ahmadalfakeh/witness-gemma4-e2b-judge`.
 - The authenticated account can access it.
 - The registry still points to the same slug.
 

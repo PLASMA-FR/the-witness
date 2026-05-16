@@ -5,4 +5,4 @@
 3. Add a watched endpoint.
 4. Send a bad answer through the proxy.
 5. Show LiteRT prefilter/risk indicator, Gemma judge rejection, prompt repair, retry, approval, and JSONL audit log.
-6. Open Model Manager and show Fine-tuned Witness Gemma 4 E2B/E4B Judge choices, Colab T4 GPU training path, and optional Kaggle download command.
+6. Open Model Manager and show Fine-tuned Witness Gemma 4 E2B LoRA adapter choice, Colab T4 GPU training path, and Hugging Face adapter download command.

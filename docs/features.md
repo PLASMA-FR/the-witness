@@ -90,7 +90,7 @@ What it checks:
 - Ollama daemon availability.
 - Model availability.
 - Proxy port availability.
-- Google Colab T4 GPU for Unsloth fine-tuning with explicit GPU VRAM/system RAM checks; Kaggle CLI credentials only for optional artifact upload/download.
+- Google Colab T4 GPU for Unsloth fine-tuning with explicit GPU VRAM/system RAM checks; Hugging Face CLI is used for the published LoRA adapter download; Kaggle is not used for the current custom model.
 - Logs writable.
 - Setup readiness flags.
 
@@ -557,16 +557,16 @@ training/notebooks/finetune_gemma4_e2b_unsloth.ipynb (Google Colab-first)
 Upload target:
 
 ```text
-plasmafr/witness-gemma4-e2b-judge
+ahmadalfakeh/witness-gemma4-e2b-judge
 ```
 
 Download after upload:
 
 ```bash
-the-witness model download --source kaggle --model witness-gemma4-e2b-judge
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
 ```
 
-Status: dataset and Colab-first notebooks are ready. Training and artifact publishing remain user-side.
+Status: the E2B LoRA adapter is published on Hugging Face at https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge. The E4B adapter is not published/trained because it was too large for the available runtime.
 
 ## Current honest MVP status
 

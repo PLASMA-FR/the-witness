@@ -149,14 +149,14 @@ Doctor checks:
 - Setup flags for judge schema test, model test, and proxy test.
 - Blackbox API key if Blackbox endpoint is enabled.
 - Local proxy port availability.
-- Google Colab T4 GPU for Unsloth fine-tuning with GPU VRAM/system RAM checks; Kaggle CLI credentials only for optional Kaggle artifact upload/download.
+- Google Colab T4 GPU for Unsloth fine-tuning with GPU VRAM/system RAM checks; Hugging Face CLI is used to download the published E2B LoRA adapter.
 - Model registry files.
 - Log directory writability.
 
 On a fresh machine, these can be expected incomplete items, not code failures:
 
-- Kaggle CLI missing; only required for optional Kaggle artifact upload/download.
-- Kaggle credentials missing; only required for optional Kaggle artifact upload/download.
+- Hugging Face CLI missing; only required for automatic E2B LoRA adapter download.
+- Hugging Face/network access missing for the adapter repository.
 - `BLACKBOX_API_KEY` not set.
 - Fine-tuned model not downloaded.
 - `gemma4:e4b` not pulled.
@@ -248,7 +248,7 @@ the-witness doctor
 the-witness start [--proxy-addr <ADDR>]
 the-witness model list
 the-witness model install [--backend <BACKEND>] [--model <MODEL>]
-the-witness model download --source kaggle --model <MODEL>
+the-witness model download --source huggingface --model <MODEL>
 the-witness model test [--backend <BACKEND>] [--model <MODEL>] [--url <URL>] [--model-path <PATH>]
 the-witness endpoint add [OPTIONS]
 the-witness endpoint add-blackbox
@@ -416,22 +416,22 @@ Model test expects the judge to return only the required JSON verdict schema.
 
 ### `the-witness model download`
 
-Download registered Kaggle model artifacts only if you chose optional Kaggle publishing after Colab training:
+Download the registered Hugging Face LoRA adapter artifact:
 
 ```bash
-the-witness model download --source kaggle --model witness-gemma4-e2b-judge
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
 ```
 
 This requires:
 
-- Kaggle CLI installed, only for optional Kaggle artifact download.
-- Kaggle credentials configured locally, only for optional Kaggle artifact download.
-- The model artifact actually uploaded and accessible.
+- Hugging Face CLI installed (`python -m pip install -U huggingface_hub`).
+- Network/Hub access to the adapter repository.
+- The Gemma 4 E2B base model available through the selected Unsloth/local inference path; the Hub artifact is only the LoRA adapter, not the full base model.
 
 Target slug:
 
 ```text
-plasmafr/witness-gemma4-e2b-judge
+ahmadalfakeh/witness-gemma4-e2b-judge
 ```
 
 ### `the-witness endpoint add`
@@ -767,16 +767,16 @@ Fine-tuned judge path:
 training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
 
 # Upload target.
-plasmafr/witness-gemma4-e2b-judge
+ahmadalfakeh/witness-gemma4-e2b-judge
 
 # Download after upload.
-the-witness model download --source kaggle --model witness-gemma4-e2b-judge
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
 
 # Test after download/serve.
 the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
 ```
 
-Honest status: Colab notebooks and dataset are ready, but the model is not trained until you run the notebook.
+Honest status: the E2B LoRA adapter is published at https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge. E4B is not published/trained because it was too large for the available runtime.
 
 ## Logs and audit
 

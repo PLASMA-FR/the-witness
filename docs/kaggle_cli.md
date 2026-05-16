@@ -1,41 +1,21 @@
-# Kaggle CLI for The Witness
+# Legacy Kaggle notes for The Witness
 
-The confirmed fine-tuned Witness model slug is:
+The current custom Witness judge is not stored in Kaggle.
+
+Use the Hugging Face E2B LoRA adapter instead:
 
 ```text
-plasmafr/witness-gemma4-e2b-judge
+https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
 ```
 
-Kaggle CLI must be authenticated locally. Do not ask The Witness to store or print tokens, and never commit `kaggle.json`.
-
-Install CLI if needed:
+Download it with:
 
 ```bash
-python -m pip install kaggle
+the-witness model download --source huggingface --model witness-gemma4-e2b-judge
 ```
 
-If credentials are not already configured, create an API token in Kaggle Account settings and place it outside the repo:
+This artifact is adapter-only LoRA output. It must be loaded with the original Gemma 4 E2B base model (`google/gemma-4-e2b`, or the configured equivalent). It is not a full multi-GB model checkout.
 
-```bash
-mkdir -p ~/.kaggle
-cp kaggle.json ~/.kaggle/kaggle.json
-chmod 600 ~/.kaggle/kaggle.json
-```
+The old Kaggle scripts remain in `training/scripts/` only as legacy optional utilities for users who intentionally publish their own copies to Kaggle. They are not used by the default registry entry and they do not point to the current custom model.
 
-Primary training now runs in Google Colab. After Colab training, optionally upload the artifact with Kaggle CLI. Colab notebook files:
-
-- training/notebooks/finetune_gemma4_e2b_unsloth.ipynb
-
-Upload the trained model:
-
-```bash
-./training/scripts/kaggle_upload_model.sh training/outputs/witness-gemma4-e2b-judge witness-gemma4-e2b-judge
-```
-
-Download from The Witness:
-
-```bash
-the-witness model download --source kaggle --model witness-gemma4-e2b-judge
-```
-
-The download uses `plasmafr/witness-gemma4-e2b-judge`, places files in `./models/witness-gemma4-e2b-judge`, verifies recognizable model files, then marks the registry entry installed.
+If you use those legacy scripts, keep Kaggle credentials outside the repo and never commit `kaggle.json`.

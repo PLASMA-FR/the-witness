@@ -2,7 +2,7 @@
 set -euo pipefail
 MODEL_DIR="${1:?usage: kaggle_upload_model.sh ./training/outputs/witness-gemma4-e2b-judge [witness-gemma4-e2b-judge]}"
 MODEL_NAME="${2:-witness-gemma4-e2b-judge}"
-SLUG="plasmafr/witness-gemma4-e2b-judge"
+SLUG="${KAGGLE_MODEL_SLUG:-your-kaggle-username/witness-gemma4-e2b-judge}"
 if ! command -v kaggle >/dev/null 2>&1; then echo "kaggle CLI missing: python -m pip install kaggle" >&2; exit 1; fi
 if [ ! -f "$HOME/.kaggle/kaggle.json" ] && { [ -z "${KAGGLE_USERNAME:-}" ] || [ -z "${KAGGLE_KEY:-}" ]; }; then echo "Kaggle credentials missing. Configure Kaggle CLI locally; never commit tokens." >&2; exit 1; fi
 if [ ! -d "$MODEL_DIR" ]; then echo "Model dir missing: $MODEL_DIR" >&2; exit 1; fi
