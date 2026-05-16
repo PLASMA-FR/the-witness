@@ -22,11 +22,10 @@ fn fail(label: &str, fix: &str) -> String {
     format!("[FAIL] {label}\nFix: {fix}")
 }
 
-pub async fn run_doctor(cfg: &WitnessConfig) -> Result<DoctorReport> {
+pub async fn run_doctor(cfg: &WitnessConfig, root: &Path) -> Result<DoctorReport> {
     let hw = hardware::detect();
     let backend = backends::validate_backend_config(&cfg.gemma)?;
     let health = backends::detect_backend_health(&cfg.gemma);
-    let root = Path::new("/home/admin/Gemma/witness");
     let registry =
         ModelRegistry::load_or_default(root).unwrap_or_else(|_| ModelRegistry::default_models());
     let ollama_running = url_ok("http://localhost:11434/api/tags").await;
@@ -177,22 +176,25 @@ pub async fn run_doctor(cfg: &WitnessConfig) -> Result<DoctorReport> {
         {
             pass("Fine-tuning notebook found")
         } else {
-            fail(
+            warn(
                 "Fine-tuning notebook missing",
-                "Create training/notebooks/finetune_gemma4_e2b_unsloth.ipynb.",
+                "Only required when developing or training the Unsloth judge from source.",
             )
         },
         if root.join("models/models.toml").exists() {
             pass("Model registry found")
         } else {
-            fail("Model registry missing", "Create models/models.toml.")
+            warn(
+                "Model registry file missing",
+                "Using built-in defaults; create models/models.toml only for custom registries.",
+            )
         },
         if root.join("logs").exists() || std::fs::create_dir_all(root.join("logs")).is_ok() {
             pass("Logs writable")
         } else {
             fail(
                 "Logs not writable",
-                "Check permissions for /home/admin/Gemma/witness/logs.",
+                &format!("Check permissions for {}.", root.join("logs").display()),
             )
         },
         format!(

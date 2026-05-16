@@ -175,7 +175,8 @@ fn load_or_default(path: &Path) -> Result<WitnessConfig> {
 }
 async fn doctor(path: &Path) -> Result<()> {
     let mut cfg = load_or_default(path)?;
-    let report = setup::doctor::run_doctor(&cfg).await?;
+    let root = path.parent().unwrap_or(Path::new("."));
+    let report = setup::doctor::run_doctor(&cfg, root).await?;
     for l in report.lines {
         println!("{l}");
     }
@@ -218,7 +219,7 @@ async fn start(path: &Path, addr: Option<SocketAddr>) -> Result<()> {
     }
 }
 async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
-    let cfg = load_or_default(path)?;
+    let mut cfg = load_or_default(path)?;
     let root = path.parent().unwrap_or(Path::new("."));
     match cmd {
         ModelCommands::List => {
@@ -268,7 +269,7 @@ async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
             Ok(())
         }
         ModelCommands::Test(t) => {
-            let mut gemma = cfg.gemma;
+            let mut gemma = cfg.gemma.clone();
             if let Some(backend) = t.backend {
                 gemma.backend = backend;
             }
@@ -278,7 +279,16 @@ async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
             if let Some(url) = t.url {
                 gemma.url = url;
             }
-            crate::models::health::run_model_sanity_test(gemma).await
+            crate::models::health::run_model_sanity_test(gemma.clone()).await?;
+            cfg.gemma = gemma;
+            cfg.setup.model_test_passed = true;
+            cfg.setup.judge_schema_test_passed = true;
+            cfg.save(path)?;
+            println!(
+                "Model sanity test passed. Saved judge backend={} model={} url={}.",
+                cfg.gemma.backend, cfg.gemma.model, cfg.gemma.url
+            );
+            Ok(())
         }
     }
 }

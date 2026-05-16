@@ -12,7 +12,7 @@ async fn doctor_reports_backend_health_lines() {
     cfg.setup.proxy_test_passed = true;
     cfg.setup.model_test_passed = true;
 
-    let report = run_doctor(&cfg).await.unwrap();
+    let report = run_doctor(&cfg, std::path::Path::new(".")).await.unwrap();
     let text = report.lines.join("\n");
     assert!(report.passed);
     assert!(text.contains("Backend selectable: demo"));
