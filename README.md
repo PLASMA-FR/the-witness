@@ -9,13 +9,13 @@ Security rule: never commit, print, screenshot, or log API keys or Kaggle tokens
 ## Quick install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<OWNER>/<REPO>/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.sh | bash
 ```
 
 Safer inspect-first install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<OWNER>/<REPO>/main/scripts/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.sh -o install.sh
 less install.sh
 bash install.sh
 ```
@@ -23,7 +23,7 @@ bash install.sh
 ## Manual install
 
 ```bash
-git clone <REAL_REPO_URL>
+git clone https://github.com/PLASMA-FR/the-witness.git
 cd the-witness
 cargo build --release
 ./target/release/the-witness setup

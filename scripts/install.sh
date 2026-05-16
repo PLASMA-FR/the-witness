@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WITNESS_REPO_URL="${WITNESS_REPO_URL:-https://github.com/<OWNER>/<REPO>.git}"
+WITNESS_REPO_URL="${WITNESS_REPO_URL:-https://github.com/PLASMA-FR/the-witness.git}"
 WITNESS_INSTALL_DIR="${WITNESS_INSTALL_DIR:-$HOME/.local/bin}"
 WITNESS_CONFIG_DIR="${WITNESS_CONFIG_DIR:-$HOME/.config/the-witness}"
 WITNESS_DEFAULT_BACKEND="${WITNESS_DEFAULT_BACKEND:-ollama}"
@@ -50,11 +50,6 @@ elif [ -f "$SCRIPT_DIR/../Cargo.toml" ] && grep -q 'name = "the-witness"' "$SCRI
   WORK_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
   info "Running from repository script directory: $WORK_DIR"
 else
-  if [[ "$WITNESS_REPO_URL" == *"<OWNER>/<REPO>"* ]]; then
-    err "WITNESS_REPO_URL is still a placeholder. Set it before using curl install, for example:"
-    err "  WITNESS_REPO_URL=https://github.com/OWNER/REPO.git bash install.sh"
-    exit 1
-  fi
   TMP_ROOT="${TMPDIR:-/tmp}/the-witness-install"
   rm -rf "$TMP_ROOT"
   info "Cloning The Witness from $WITNESS_REPO_URL"
