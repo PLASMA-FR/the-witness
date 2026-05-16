@@ -17,7 +17,7 @@ Start here if you want more detail than the top-level README.
 
 ## Fine-tuning, Colab, and optional Kaggle
 
-- [Google Colab fine-tuning guide](google_colab_finetuning.md): recommended TPU training runtime, GPU/Unsloth fallback, and artifact export flow.
+- [Google Colab fine-tuning guide](google_colab_finetuning.md): recommended Colab T4 GPU/Unsloth training runtime, memory checks, and artifact export flow.
 - [Kaggle CLI guide](kaggle_cli.md): optional Kaggle auth/upload/download notes after Colab training.
 - [User completion guide](user_completion_guide.md): what remains user-side for training, upload, and final model testing.
 

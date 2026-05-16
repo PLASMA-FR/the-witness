@@ -149,7 +149,7 @@ Doctor checks:
 - Setup flags for judge schema test, model test, and proxy test.
 - Blackbox API key if Blackbox endpoint is enabled.
 - Local proxy port availability.
-- Google Colab TPU for fine-tuning; GPU/Unsloth fallback; Kaggle CLI credentials only for optional Kaggle artifact upload/download.
+- Google Colab T4 GPU for Unsloth fine-tuning with GPU VRAM/system RAM checks; Kaggle CLI credentials only for optional Kaggle artifact upload/download.
 - Model registry files.
 - Log directory writability.
 

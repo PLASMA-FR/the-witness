@@ -109,7 +109,7 @@ the-witness replay <request-id>
 the-witness export <request-id> --format markdown
 ```
 
-## Fine-tuned TPU/GPU model
+## Fine-tuned Colab T4 GPU model
 
 Confirmed Kaggle target slug:
 
@@ -124,7 +124,7 @@ the-witness model download --source kaggle --model witness-gemma4-e2b-judge
 the-witness model test --backend unsloth --model witness-gemma4-e2b-judge
 ```
 
-Honest status: Colab TPU/GPU notebooks and pipeline exist, but the model is not trained or uploaded until you run the Google Colab notebook and publish or copy the artifact.
+Honest status: Colab T4 GPU notebooks and pipeline exist, but the model is not trained or uploaded until you run the Google Colab notebook and publish or copy the artifact.
 
 Fine-tuning assets:
 
@@ -209,7 +209,7 @@ The Witness supports four hackathon technology tracks:
 - Ollama: easiest local Gemma judge path.
 - llama.cpp: resource-constrained local inference with OpenAI-compatible server mode.
 - LiteRT: lightweight edge verification/prefilter path.
-- Unsloth/TPU fine-tuning: optional fine-tuned Gemma 4 judge path.
+- Unsloth Colab T4 GPU fine-tuning: optional fine-tuned Gemma 4 judge path.
 
 See `docs/tracks.md` for details.
 
@@ -220,7 +220,7 @@ See `docs/tracks.md` for details.
 - `docs/features.md` — full feature guide and honest MVP status table.
 - `docs/architecture.md` — architecture and data flow.
 - `docs/setup.md` — setup and health checks.
-- `docs/google_colab_finetuning.md` — Google Colab TPU-first fine-tuning guide with GPU/Unsloth fallback.
+- `docs/google_colab_finetuning.md` — Google Colab T4 GPU fine-tuning guide with explicit GPU VRAM and system RAM checks.
 - `docs/kaggle_cli.md` — optional Kaggle auth/upload/download notes for artifact distribution after Colab training.
 - `docs/tracks.md` — technology track mapping.
 - `docs/demo_script.md` — demo flow.

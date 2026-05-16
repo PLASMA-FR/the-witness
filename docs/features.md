@@ -90,7 +90,7 @@ What it checks:
 - Ollama daemon availability.
 - Model availability.
 - Proxy port availability.
-- Google Colab TPU for fine-tuning; GPU/Unsloth fallback; Kaggle CLI credentials only for optional artifact upload/download.
+- Google Colab T4 GPU for Unsloth fine-tuning with explicit GPU VRAM/system RAM checks; Kaggle CLI credentials only for optional artifact upload/download.
 - Logs writable.
 - Setup readiness flags.
 
@@ -582,7 +582,7 @@ Demo model test | Working | Deterministic local judge.
 Ollama path | Working when Ollama/model installed | User must pull models locally.
 llama.cpp path | Config/test path | User supplies server/model.
 LiteRT path | Config/test path | User supplies local model.
-TPU/GPU fine-tuning path | Pipeline ready | User must train/upload/download model.
+Colab T4 GPU fine-tuning path | Pipeline ready | User must train/upload/download model.
 Endpoint add/list/test/enable/disable | Working CLI MVP | Rich TUI editing can expand.
 Blackbox template | Working when key set | Requires `BLACKBOX_API_KEY`.
 Proxy non-streaming chat | MVP | Streaming is non-goal for MVP.

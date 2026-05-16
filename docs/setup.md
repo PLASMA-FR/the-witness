@@ -42,4 +42,4 @@ Run:
 the-witness doctor
 ```
 
-Doctor verifies backend, model availability, notebooks, Colab TPU notebooks, optional Kaggle tooling, logs, and setup flags. On fresh machines, missing Ollama models, optional Kaggle credentials, Blackbox API keys, and untrained fine-tuned models are expected user-side readiness items rather than build failures.
+Doctor verifies backend, model availability, notebooks, Colab T4 GPU notebooks, optional Kaggle tooling, logs, and setup flags. On fresh machines, missing Ollama models, optional Kaggle credentials, Blackbox API keys, and untrained fine-tuned models are expected user-side readiness items rather than build failures.

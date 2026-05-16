@@ -1,3 +1,3 @@
 # Fine-tuned Witness Gemma 4 E4B Judge
 
-TPU/GPU LoRA judge for The Witness. TPU path uses Transformers + PEFT + PyTorch/XLA; GPU fallback uses Unsloth LoRA/QLoRA. Emits strict JSON verdicts. Not a replacement for experts.
+Colab T4 GPU LoRA/QLoRA judge for The Witness. Uses Unsloth + bitsandbytes 4-bit training on CUDA GPU VRAM with system RAM for dataset/checkpoint plumbing. Emits strict JSON verdicts. Not a replacement for experts.

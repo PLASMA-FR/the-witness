@@ -1,27 +1,24 @@
-# Google Colab TPU fine-tuning guide
+# Google Colab T4 GPU fine-tuning guide
 
-The Witness fine-tuning notebooks are Colab-first and now include a Google TPU path. Kaggle remains an optional artifact export/download path, but the recommended training runtime is Google Colab with TPU. A CUDA GPU fallback remains available for Unsloth.
+The Witness fine-tuning notebooks are Colab-first and now target the Google Colab T4 GPU runtime. Kaggle remains an optional artifact export/download path, but the recommended training runtime is Google Colab with T4 GPU.
 
-Important honesty note: Unsloth and bitsandbytes are CUDA/GPU-oriented and do not run on TPU. The TPU path uses Transformers + PEFT LoRA + PyTorch/XLA. The GPU fallback path still uses Unsloth LoRA/QLoRA.
+Important memory note: the notebooks are designed to use both GPU VRAM and system RAM. Unsloth + bitsandbytes 4-bit QLoRA put the model, LoRA adapters, activations, and training tensors on CUDA GPU VRAM. The dataset, tokenizer files, Python process, dataloader buffers, checkpoints, metrics, archives, and Drive/Hugging Face upload plumbing use system RAM and disk. The notebook fails fast if CUDA is unavailable so it does not accidentally train using only CPU/system RAM.
 
 ## Notebooks
 
-- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended first run; TPU path supported.
-- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — stronger/larger optional run; may need more TPU memory.
+- `training/notebooks/finetune_gemma4_e2b_unsloth.ipynb` — recommended first run on Colab T4 GPU.
+- `training/notebooks/finetune_gemma4_e4b_unsloth.ipynb` — stronger/larger optional run; may need lower sequence length/batch on T4.
 
-## Colab TPU quick start
+## Colab T4 GPU quick start
 
 1. Open Google Colab.
 2. Upload one of the notebooks, or open it from the GitHub repo.
-3. Select `Runtime -> Change runtime type -> TPU`.
-4. Optional but recommended: set the accelerator explicitly before the install cell:
-
-```python
-import os
-os.environ["WITNESS_ACCELERATOR"] = "tpu"
-```
-
-5. Run the package install cell. It installs common packages and verifies/installs `torch_xla` for TPU.
+3. Select `Runtime -> Change runtime type -> T4 GPU`.
+4. Run the package install/check cell.
+5. Confirm the cell prints:
+   - CUDA GPU name
+   - GPU VRAM free/total
+   - system RAM available/total
 6. Let the setup cell clone this repo into `/content/the-witness`, or upload the repo/dataset manually.
 7. Verify the config cell:
 
@@ -30,21 +27,30 @@ BASE_MODEL = os.environ.get("GEMMA4_E2B_BASE", "google/gemma-4-e2b")
 OUTPUT_DIR = /content/witness_outputs/witness-gemma4-e2b-judge
 TRAIN_FILE = /content/the-witness/training/dataset/witness_judge_train.jsonl
 VAL_FILE = /content/the-witness/training/dataset/witness_judge_val.jsonl
-ACCELERATOR = "tpu"
+ACCELERATOR = "t4-gpu"
 ```
 
 The base model ID is configurable because exact public Gemma 4 IDs may vary.
 
-## GPU fallback
+## Memory behavior
 
-If Colab TPU package compatibility fails, switch to GPU and set:
+The training cell verifies that model parameters are on CUDA:
 
 ```python
-import os
-os.environ["WITNESS_ACCELERATOR"] = "gpu"
+param_device = next(model.parameters()).device
+if param_device.type != "cuda":
+    raise RuntimeError(...)
 ```
 
-The GPU path uses Unsloth + bitsandbytes QLoRA. The TPU path does not.
+This catches the bad case where the notebook silently falls back to CPU/system RAM. It also prints CUDA VRAM after model load and system RAM after dataset/model setup.
+
+If T4 VRAM is tight, lower:
+
+```python
+os.environ["WITNESS_MAX_SEQ_LENGTH"] = "1024"
+os.environ["WITNESS_BATCH_SIZE"] = "1"
+os.environ["WITNESS_LORA_RANK"] = "8"
+```
 
 ## Optional Google Drive persistence
 
@@ -69,24 +75,22 @@ Otherwise outputs default to:
 
 ## Smoke test settings
 
-For a fast TPU sanity run:
+For a fast T4 sanity run:
 
 ```python
 import os
-os.environ["WITNESS_ACCELERATOR"] = "tpu"
-os.environ["WITNESS_TRAIN_LIMIT"] = "100"
-os.environ["WITNESS_VAL_LIMIT"] = "25"
-os.environ["WITNESS_MAX_STEPS"] = "10"
-os.environ["WITNESS_MAX_SEQ_LENGTH"] = "512"
+os.environ["WITNESS_TRAIN_LIMIT"] = "200"
+os.environ["WITNESS_VAL_LIMIT"] = "50"
+os.environ["WITNESS_MAX_STEPS"] = "20"
+os.environ["WITNESS_MAX_SEQ_LENGTH"] = "1024"
 os.environ["WITNESS_BATCH_SIZE"] = "1"
 os.environ["WITNESS_LORA_RANK"] = "8"
 ```
 
-For the real run, leave dataset limits unset or `0`, and increase steps as TPU memory allows:
+For the real run, leave dataset limits unset or `0`, and increase steps as memory allows:
 
 ```python
 import os
-os.environ["WITNESS_ACCELERATOR"] = "tpu"
 os.environ["WITNESS_TRAIN_LIMIT"] = "0"
 os.environ["WITNESS_VAL_LIMIT"] = "0"
 os.environ["WITNESS_MAX_STEPS"] = "300"
@@ -145,4 +149,4 @@ Kaggle is still supported for artifact distribution after Colab training:
 
 ## Honest status
 
-The repo contains Colab TPU/GPU-ready notebooks and dataset. The fine-tuned model is not trained until you run a notebook and publish or copy the output artifact. I validated notebook JSON and project tests locally, but I cannot execute a real Google TPU runtime from this machine.
+The repo contains Colab T4 GPU-ready notebooks and dataset. The fine-tuned model is not trained until you run a notebook and publish or copy the output artifact. I validated notebook JSON and project tests locally, but I cannot execute a real Google Colab T4 runtime from this machine.
