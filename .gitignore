@@ -30,3 +30,7 @@ logs/*.jsonl
 
 .venv-backends/
 *.zip
+
+# Local generated demo video assets
+/demo_videos/*.mp4
+/demo_videos/*.png
