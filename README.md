@@ -1,5 +1,5 @@
 # The Witness
-
+#Note : Gemma is a trademark of Google LLC.
 The Witness is a local-first Gemma 4 reliability firewall for AI endpoints.
 
 It runs as a modern TUI and OpenAI-compatible local proxy. Your app sends requests to The Witness, The Witness forwards them to the upstream AI endpoint, captures the candidate response, asks a local Gemma 4 judge for a strict JSON verdict, and only returns approved responses. Disapproved responses are blocked, repaired, retried, and logged. High-risk or uncertain responses can be paused for human review.
