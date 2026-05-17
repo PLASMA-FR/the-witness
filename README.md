@@ -166,7 +166,7 @@ python3 training/scripts/validate_dataset.py
 Set the key in your shell only:
 
 ```bash
-export BLACKBOX_API_KEY="YOUR_KEY_HERE"
+export BLACKBOX_API_KEY="***"
 ```
 
 Direct upstream sanity test:
