@@ -6,6 +6,20 @@ It runs as a modern TUI and OpenAI-compatible local proxy. Your app sends reques
 
 Security rule: never commit, print, screenshot, or log API keys or Kaggle tokens. Use environment variables such as `BLACKBOX_API_KEY`; examples reference `$BLACKBOX_API_KEY` only.
 
+## Gallery
+
+![The Witness Cover](gallery/01_cover_the_witness.png)
+
+![Architecture](gallery/02_architecture_diagram.png)
+
+![Approval Loop](gallery/03_approval_loop.png)
+
+![TUI Dashboard](gallery/04_tui_dashboard.png)
+
+![Model Manager](gallery/06_model_manager_tracks.png)
+
+More Kaggle, README, social, logo, and launch assets are in [`gallery/README.md`](gallery/README.md).
+
 ## Quick install
 
 ```bash

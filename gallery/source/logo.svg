@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="500" viewBox="0 0 1400 500">
+  <rect width="1400" height="500" fill="#03070a"/>
+  <rect x="80" y="100" width="350" height="300" rx="40" fill="#061217" stroke="#00e5d4" stroke-width="8"/>
+  <ellipse cx="255" cy="250" rx="105" ry="85" fill="none" stroke="#00e5d4" stroke-width="8"/>
+  <circle cx="255" cy="250" r="36" fill="rgba(0,229,212,0.4)" stroke="#00e5d4" stroke-width="6"/>
+  <path d="M430 250 L520 250" stroke="#00e5d4" stroke-width="8" stroke-linecap="round"/>
+  <path d="M520 250 L492 232 L492 268 Z" fill="#00e5d4"/>
+  <text x="580" y="205" font-family="DejaVu Sans, Arial, sans-serif" font-size="86" font-weight="700" fill="#f0fffc">The Witness</text>
+  <text x="585" y="305" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" fill="#00e5d4">Local AI verification before AI action</text>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 Z" fill="#00e5d4"/></marker>
+    <style>
+      text{font-family:DejaVu Sans,Arial,sans-serif;fill:#f0fffc}.sub{fill:#9bcfca;font-size:26px}.box{fill:#061217;stroke:#00e5d4;stroke-width:3}.edge{stroke:#00e5d4;stroke-width:5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1920" height="1080" fill="#03070a"/>
+  <text x="96" y="120" font-size="58" font-weight="700">The Witness Architecture</text>
+  <text x="96" y="172" class="sub">OpenAI-compatible proxy + local Gemma verification + repair loop + audit trail</text>
+  <g transform="translate(120 300)">
+    <rect class="box" x="0" y="0" width="270" height="130" rx="22"/><text x="28" y="58" font-size="32" font-weight="700">AI App</text><text x="28" y="94" class="sub">agent or tool</text>
+    <line class="edge" x1="280" y1="65" x2="430" y2="65"/>
+    <rect class="box" x="450" y="0" width="340" height="130" rx="22"/><text x="478" y="55" font-size="30" font-weight="700">Witness Proxy</text><text x="478" y="92" class="sub">localhost:8787/v1</text>
+    <line class="edge" x1="800" y1="65" x2="950" y2="65"/>
+    <rect class="box" x="970" y="0" width="340" height="130" rx="22"/><text x="998" y="55" font-size="30" font-weight="700">Upstream Endpoint</text><text x="998" y="92" class="sub">candidate response</text>
+    <line class="edge" x1="1140" y1="140" x2="1140" y2="300"/>
+    <rect class="box" x="970" y="320" width="340" height="130" rx="22"/><text x="998" y="375" font-size="30" font-weight="700">Gemma 4 Judge</text><text x="998" y="412" class="sub">structured JSON verdict</text>
+    <line class="edge" x1="960" y1="385" x2="800" y2="385"/>
+    <rect class="box" x="450" y="320" width="340" height="130" rx="22"/><text x="478" y="375" font-size="30" font-weight="700">Verdict Router</text><text x="478" y="412" class="sub">approve / repair / review</text>
+    <line class="edge" x1="620" y1="460" x2="620" y2="570"/>
+    <rect class="box" x="450" y="590" width="340" height="130" rx="22"/><text x="478" y="645" font-size="30" font-weight="700">Audit Log</text><text x="478" y="682" class="sub">JSONL / SQLite</text>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 Z" fill="#00e5d4"/></marker></defs>
+  <rect width="1920" height="1080" fill="#03070a"/>
+  <text x="96" y="125" font-family="DejaVu Sans,Arial" font-size="58" font-weight="700" fill="#f0fffc">Approval Loop</text>
+  <text x="96" y="178" font-family="DejaVu Sans,Arial" font-size="28" fill="#9bcfca">Request → candidate → Gemma judge → repair/retry → approved response</text>
+  <circle cx="960" cy="560" r="300" fill="none" stroke="#00e5d4" stroke-width="4" stroke-dasharray="12 12" opacity="0.7"/>
+  <g font-family="DejaVu Sans,Arial" font-size="28" font-weight="700" fill="#f0fffc" text-anchor="middle">
+    <text x="960" y="235">Request</text><text x="1240" y="410">Candidate</text><text x="1240" y="725">Gemma Judge</text><text x="960" y="910">APPROVED</text><text x="680" y="725">Prompt Repair</text><text x="680" y="410">DISAPPROVED</text>
+  </g>
+  <path d="M960 260 C1220 300 1360 490 1240 680 C1120 860 820 860 680 680 C540 500 700 300 960 260" fill="none" stroke="#00e5d4" stroke-width="7" marker-end="url(#arrow)"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" viewBox="0 0 1600 1600">
+  <rect width="1600" height="1600" fill="#03070a"/>
+  <text x="800" y="160" text-anchor="middle" font-family="DejaVu Sans,Arial" font-size="76" font-weight="700" fill="#f0fffc">The Witness Social Templates</text>
+  <g fill="#061217" stroke="#00e5d4" stroke-width="4">
+    <rect x="130" y="310" width="380" height="380" rx="34"/><rect x="610" y="310" width="380" height="380" rx="34"/><rect x="1090" y="310" width="380" height="380" rx="34"/>
+  </g>
+  <g font-family="DejaVu Sans,Arial" font-size="42" fill="#f0fffc" text-anchor="middle">
+    <text x="320" y="510">Launch</text><text x="800" y="510">Before / After</text><text x="1280" y="510">Tracks</text>
+  </g>
+  <text x="800" y="1180" text-anchor="middle" font-family="DejaVu Sans,Arial" font-size="48" fill="#00e5d4">Do not just trust AI. Let The Witness see it first.</text>
+</svg>
