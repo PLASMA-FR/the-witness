@@ -494,7 +494,6 @@ html_doc = f"""<!doctype html>
     </div>
     <div class="diagram"><div class="flow"><div class="node">AI App / Agent</div><div class="arrow">↓</div><div class="node">The Witness Local Proxy</div><div class="arrow">↓</div><div class="node">Upstream AI Endpoint</div><div class="arrow">↓</div><div class="node">Candidate Response</div><div class="arrow">↓</div><div class="node">Gemma 4 Judge</div><div class="arrow">↓</div><div class="node">Return / Repair + Retry / Human Review</div><div class="arrow">↓</div><div class="node">Audit Log</div></div></div>
   </div>
-  {img('arch', 'Architecture diagram: the local proxy sits between AI applications, upstream endpoints, Gemma 4 judging, repair, and audit logs.')}
 ''', 'Architecture')}
 
 {page('4. Core Workflow', f'''
@@ -502,7 +501,6 @@ html_doc = f"""<!doctype html>
   <ol>
     <li>User adds endpoint.</li><li>The Witness creates a local proxy URL.</li><li>AI app sends request to local proxy.</li><li>The Witness forwards request to upstream endpoint.</li><li>Upstream returns candidate response.</li><li>Gemma 4 judges response.</li><li>If approved, response is returned.</li><li>If disapproved, response is blocked.</li><li>Prompt repair is generated.</li><li>Request is retried.</li><li>If risky, human review queue is used.</li><li>Logs are saved.</li>
   </ol>
-  {img('loop','Approval loop: response capture, Gemma verdict, disapproval, prompt repair, retry, approval, and audit.')}
 ''', 'Usage flow')}
 
 <section class="page"><div class="content"><div class="section-kicker">Capabilities</div><h2>5. Features</h2><div class="feature-grid">{feature_cards}</div></div></section>
