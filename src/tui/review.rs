@@ -1,5 +1,34 @@
-use crate::tui::{app::App, dashboard::paragraph};
-use ratatui::prelude::*;
+use crate::tui::{app::App, dashboard::*};
+use ratatui::{prelude::*, widgets::Paragraph};
+
 pub fn draw(f: &mut Frame, _: &App, area: Rect) {
-    f.render_widget(paragraph("Human Review Queue","Approve, reject, edit, retry, export report, mark unsafe, add note. Queue fed by NEEDS_HUMAN_REVIEW and fallback_mode=human_review.".into()),area);
+    let lines = vec![
+        Line::from(vec![
+            badge("REQ-2011", AMBER),
+            Span::raw("  Profile: Health & Sciences"),
+        ]),
+        Line::from(vec![
+            Span::styled("Risk: ", Style::default().fg(MUTED)),
+            Span::styled("high", Style::default().fg(RED)),
+        ]),
+        Line::from("Reason: medical-style answer requires uncertainty and source caution."),
+        Line::from(""),
+        Line::from(vec![
+            badge("Approve", GREEN),
+            Span::raw("  "),
+            badge("Reject", RED),
+            Span::raw("  "),
+            badge("Edit", BLUE),
+            Span::raw("  "),
+            badge("Regenerate", AMBER),
+        ]),
+        Line::from(""),
+        Line::from("Human review pauses risky responses before they reach users."),
+    ];
+    f.render_widget(
+        Paragraph::new(lines)
+            .wrap(ratatui::widgets::Wrap { trim: true })
+            .block(panel("Human Review Queue", AMBER)),
+        area,
+    );
 }

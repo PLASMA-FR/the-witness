@@ -1,28 +1,108 @@
-use crate::tui::app::App;
+use crate::tui::{app::App, dashboard::*};
 use ratatui::{
+    layout::{Constraint, Direction, Layout},
     prelude::*,
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{Gauge, List, ListItem, Paragraph},
 };
+
 pub fn draw(f: &mut Frame, app: &App, area: Rect) {
-    let lines = vec![
-        "First Run Setup Wizard",
-        "1 Welcome: The Witness is a local-first Gemma 4 reliability firewall for AI endpoints.",
-        "2 Technology path: Quick Ollama, low-resource llama.cpp, edge LiteRT, Colab T4 GPU fine-tuned judge, or manual.",
-        "3 Backend selection: Ollama local judge / llama.cpp local judge / LiteRT edge judge / Unsloth fine-tuned judge / Manual endpoint.",
-        "4 Hardware check: OS, CPU arch, system RAM, GPU VRAM hints, disk, Ollama, llama.cpp, Hugging Face CLI, free ports.",
-        "5 Model picker: Gemma 4 E2B, Gemma 4 E4B, larger Gemma 4, fine-tuned Witness E2B LoRA adapter, custom editable name/path.",
-        "6 Install/pull/download: ollama pull, llama.cpp server URL, LiteRT path, Colab T4 GPU fine-tuned model path, manual URL/auth.",
-        "7 Judge capability test: bad 2+2 must DISAPPROVE; good 2+2 must APPROVE; valid JSON schema required.",
-        "8 Proxy test: temp route receives, forwards, captures, judges, retries/blocks, and writes JSONL logs.",
-        "9 Endpoint test: upstream connectivity/auth/local proxy/real request/retry loop or demo endpoint.",
-        "10 Final checklist: backend, model, schema, proxy, logs, endpoint or demo mode.",
-        "",
-        "Settings shortcuts: o Ollama | l llama.cpp | t LiteRT | u Unsloth | m Manual | d Demo. Model list: press 7.",
-        if app.cfg.setup_ready() { "READY: dashboard may open" } else { "NOT READY: run `the-witness setup`, `the-witness model test`, or choose demo mode" },
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .margin(1)
+        .constraints([Constraint::Percentage(58), Constraint::Percentage(42)])
+        .split(area);
+    let steps = [
+        ("Welcome", "what The Witness does", true),
+        (
+            "Backend",
+            "Ollama / llama.cpp / LiteRT / Unsloth / manual",
+            true,
+        ),
+        ("Hardware", "OS, RAM, disk, GPU, ports", true),
+        ("Model", "Gemma 4 E2B/E4B/custom", true),
+        (
+            "Install",
+            "pull/download/configure selected judge",
+            app.cfg.setup.model_test_passed,
+        ),
+        (
+            "Judge test",
+            "bad 2+2 rejects; good 2+2 approves",
+            app.cfg.setup.judge_schema_test_passed,
+        ),
+        (
+            "Proxy test",
+            "receive, forward, judge, retry, log",
+            app.cfg.setup.proxy_test_passed,
+        ),
+        (
+            "Endpoint",
+            "real endpoint or demo mode",
+            app.cfg.setup.demo_mode || !app.cfg.endpoints.is_empty(),
+        ),
+    ];
+    let items = steps.iter().map(|(name, desc, pass)| {
+        let state = if *pass {
+            badge("PASS", GREEN)
+        } else {
+            badge("TODO", AMBER)
+        };
+        ListItem::new(Line::from(vec![
+            state,
+            Span::raw(format!(" {name:<12} {desc}")),
+        ]))
+    });
+    f.render_widget(
+        List::new(items).block(panel("First-run setup wizard", AMBER)),
+        chunks[0],
+    );
+    let readiness = if app.cfg.setup_ready() { 100 } else { 62 };
+    let right = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(6), Constraint::Min(10)])
+        .split(chunks[1]);
+    f.render_widget(
+        Gauge::default()
+            .block(panel("Readiness gate", TEAL))
+            .gauge_style(
+                Style::default()
+                    .fg(if app.cfg.setup_ready() { GREEN } else { AMBER })
+                    .bg(PANEL_2),
+            )
+            .percent(readiness),
+        right[0],
+    );
+    let text = vec![
+        Line::from(Span::styled(
+            "The dashboard opens only after setup passes or demo mode is selected.",
+            Style::default().fg(WHITE),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            badge("o", BLUE),
+            Span::raw(" Ollama  "),
+            badge("l", PURPLE),
+            Span::raw(" llama.cpp"),
+        ]),
+        Line::from(vec![
+            badge("t", AMBER),
+            Span::raw(" LiteRT  "),
+            badge("u", GREEN),
+            Span::raw(" Unsloth"),
+        ]),
+        Line::from(vec![
+            badge("m", TEAL),
+            Span::raw(" Manual  "),
+            badge("d", GREEN),
+            Span::raw(" Demo mode"),
+        ]),
+        Line::from(""),
+        Line::from("Run `the-witness doctor` for non-interactive health checks."),
     ];
     f.render_widget(
-        List::new(lines.into_iter().map(ListItem::new).collect::<Vec<_>>())
-            .block(Block::default().title("Setup Wizard").borders(Borders::ALL)),
-        area,
+        Paragraph::new(text)
+            .wrap(ratatui::widgets::Wrap { trim: true })
+            .block(panel("Setup controls", TEAL)),
+        right[1],
     );
 }
