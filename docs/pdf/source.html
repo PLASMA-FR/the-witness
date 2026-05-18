@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>The Witness Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<section class="page cover">
+  <div class="badges"><span class="badge ">Gemma 4</span><span class="badge ">Ollama</span><span class="badge ">llama.cpp</span><span class="badge ">LiteRT</span><span class="badge ">Unsloth</span><span class="badge ">Hugging Face</span><span class="badge ">Safety &amp; Trust</span></div>
+  <h1>The Witness</h1>
+  <p class="subtitle">A Local-First Gemma 4 Reliability Firewall for AI Endpoints</p>
+  <p class="tagline">Do not just trust AI. Let The Witness see it first.</p>
+  <div class="cover-card">
+    <img class="cover-visual" src="../../gallery/01_cover_the_witness.png" alt="The Witness cover visual">
+  </div>
+  <p class="footer-links"><strong>GitHub:</strong> https://github.com/PLASMA-FR/the-witness<br><strong>Fine-tuned model:</strong> https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge<br><strong>Colab notebook:</strong> https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing</p>
+</section>
+
+<section class="page"><div class="content">
+  <div class="section-kicker">Navigation</div>
+  <h2>Table of Contents</h2>
+  <div class="toc-grid">
+    <div class="toc-item"><strong>1.</strong> Executive Summary</div><div class="toc-item"><strong>2.</strong> The Problem</div><div class="toc-item"><strong>3.</strong> The Solution</div><div class="toc-item"><strong>4.</strong> Core Workflow</div><div class="toc-item"><strong>5.</strong> Features</div><div class="toc-item"><strong>6.</strong> TUI Guide</div><div class="toc-item"><strong>7.</strong> Installation</div><div class="toc-item"><strong>8.</strong> Model Setup</div><div class="toc-item"><strong>9.</strong> Adding an Endpoint</div><div class="toc-item"><strong>10.</strong> Gemma 4 Judge Schema</div><div class="toc-item"><strong>11.</strong> Prompt Repair</div><div class="toc-item"><strong>12.</strong> Technology Tracks</div><div class="toc-item"><strong>13.</strong> Impact Tracks</div><div class="toc-item"><strong>14.</strong> Demo Walkthrough</div><div class="toc-item"><strong>15.</strong> Security and Privacy</div><div class="toc-item"><strong>16.</strong> Limitations</div><div class="toc-item"><strong>17.</strong> Reproducibility</div><div class="toc-item"><strong>18.</strong> Links</div><div class="toc-item"><strong>19.</strong> Final Pitch</div>
+  </div>
+  <div class="callout"><strong>Reader promise:</strong> this booklet shows the project workflow, the local proxy architecture, the TUI, the Gemma judge schema, setup commands, demo path, tracks, and honest limitations.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Overview</div><h2>1. Executive Summary</h2>
+  <div class="hero-row">
+    <div>
+      <p><strong>The Witness</strong> is a TUI-based local proxy that lets users add AI endpoints, watch every request and response, verify each response using Gemma 4, block bad answers, repair prompts, retry, and only return approved responses.</p>
+      <div class="callout"><strong>“The Witness is not another chatbot.”</strong><br>It is the verification layer between AI generation and real-world action.</div>
+      <p>Instead of trusting the first response from an upstream model, The Witness asks a local Gemma 4 judge whether the response is safe, useful, aligned with the prompt, and low-risk enough to pass through.</p>
+    </div>
+    <div class="terminal"><div class="bar"><span class="dot"></span><span class="dot amber"></span><span class="dot green"></span></div><strong>$ the-witness start</strong><br><br>Dashboard → Endpoint Watchlist → Live Stream → Gemma Verdict → Prompt Repair → Audit Log</div>
+  </div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Why it matters</div><h2>2. The Problem</h2>
+  <p>AI tools are becoming agents. They write code, tutor students, summarize health information, support finance workflows, and automate work. But many tools trust the first model response immediately.</p>
+  <div class="three-col">
+    <div class="card"><h3>Incorrect code</h3><p>A weak answer can create broken scripts, unsafe shell commands, or insecure defaults.</p></div>
+    <div class="card"><h3>Bad tutoring</h3><p>Students may see plausible but wrong explanations before anyone reviews them.</p></div>
+    <div class="card"><h3>Overconfident advice</h3><p>Health, finance, and legal topics require caution, uncertainty, and human review.</p></div>
+    <div class="card"><h3>Hallucinated facts</h3><p>Agents may invent APIs, citations, or operational details.</p></div>
+    <div class="card"><h3>Untraceable decisions</h3><p>Without logs, teams cannot reconstruct what was approved, rejected, or retried.</p></div>
+    <div class="card"><h3>Hidden risk</h3><p>The failure happens between the model and the user. The Witness puts a gate there.</p></div>
+  </div>
+  <div class="callout warning"><strong>Risk statement:</strong> The point is not to claim perfect safety. The point is to add a local, explainable verification gate before model output reaches real users.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Architecture</div><h2>3. The Solution</h2>
+  <div class="two-col">
+    <div>
+      <p>The Witness sits between the AI app and the upstream model endpoint. The original application calls a localhost OpenAI-compatible proxy. The Witness forwards the request, captures the candidate response, and asks Gemma 4 for a structured verdict before releasing anything.</p>
+      <ul>
+        <li>watches the endpoint</li><li>captures request/response pairs</li><li>sends candidate responses to Gemma 4</li><li>approves, rejects, repairs, retries, or pauses for human review</li><li>writes an audit trail</li>
+      </ul>
+    </div>
+    <div class="diagram"><div class="flow"><div class="node">AI App / Agent</div><div class="arrow">↓</div><div class="node">The Witness Local Proxy</div><div class="arrow">↓</div><div class="node">Upstream AI Endpoint</div><div class="arrow">↓</div><div class="node">Candidate Response</div><div class="arrow">↓</div><div class="node">Gemma 4 Judge</div><div class="arrow">↓</div><div class="node">Return / Repair + Retry / Human Review</div><div class="arrow">↓</div><div class="node">Audit Log</div></div></div>
+  </div>
+  <div class="img-frame"><img src="../../gallery/02_architecture_diagram.png" alt="Architecture diagram: the local proxy sits between AI applications, upstream endpoints, Gemma 4 judging, repair, and audit logs."><div class="caption">Architecture diagram: the local proxy sits between AI applications, upstream endpoints, Gemma 4 judging, repair, and audit logs.</div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Usage flow</div><h2>4. Core Workflow</h2>
+  <div class="loop no-break"><div class="decision"><span class="badge red">DISAPPROVED</span><br><br>Block candidate response<br>Generate prompt repair<br>Retry upstream endpoint</div><div style="text-align:center;font-size:32px;color:#2fffd0">⇄</div><div class="decision"><span class="badge green">APPROVED</span><br><br>Return final response<br>Mark request approved<br>Save audit log</div></div>
+  <ol>
+    <li>User adds endpoint.</li><li>The Witness creates a local proxy URL.</li><li>AI app sends request to local proxy.</li><li>The Witness forwards request to upstream endpoint.</li><li>Upstream returns candidate response.</li><li>Gemma 4 judges response.</li><li>If approved, response is returned.</li><li>If disapproved, response is blocked.</li><li>Prompt repair is generated.</li><li>Request is retried.</li><li>If risky, human review queue is used.</li><li>Logs are saved.</li>
+  </ol>
+  <div class="img-frame"><img src="../../gallery/03_approval_loop.png" alt="Approval loop: response capture, Gemma verdict, disapproval, prompt repair, retry, approval, and audit."><div class="caption">Approval loop: response capture, Gemma verdict, disapproval, prompt repair, retry, approval, and audit.</div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Capabilities</div><h2>5. Features</h2><div class="feature-grid"><div class="card"><h3>TUI dashboard</h3><p>Live operational view of endpoint health, request stats, approvals, rejections, retry counts, and current judge configuration.</p><p class="why"><strong>Why it matters:</strong> Judges and users can see the system working without opening a browser.</p></div><div class="card"><h3>Endpoint watchlist</h3><p>Add, edit, enable, disable, test, and duplicate watched endpoint configurations.</p><p class="why"><strong>Why it matters:</strong> Every endpoint can have its own proxy URL, profile, retry limit, strictness, and fallback behavior.</p></div><div class="card"><h3>OpenAI-compatible local proxy</h3><p>Applications point at localhost while The Witness forwards to the real upstream endpoint.</p><p class="why"><strong>Why it matters:</strong> Existing tools can adopt the verification layer with minimal configuration changes.</p></div><div class="card"><h3>Request/response monitoring</h3><p>Captures model name, prompt content, metadata, latency, and candidate response before release.</p><p class="why"><strong>Why it matters:</strong> Turns invisible model traffic into an auditable timeline.</p></div><div class="card"><h3>Gemma 4 judge</h3><p>A local Gemma 4 model reviews candidate responses and returns structured safety and quality verdicts.</p><p class="why"><strong>Why it matters:</strong> Keeps the trust layer local-first and inspectable.</p></div><div class="card"><h3>Structured JSON verdicts</h3><p>The judge must output a strict schema with verdict, confidence, scores, risk, reason, and repair instruction.</p><p class="why"><strong>Why it matters:</strong> Machine-readable decisions make automation and auditing possible.</p></div><div class="card"><h3>Approval states</h3><p>Supports APPROVED, DISAPPROVED, and NEEDS_HUMAN_REVIEW.</p><p class="why"><strong>Why it matters:</strong> Not every response is binary; risky cases can pause for a person.</p></div><div class="card"><h3>Prompt repair loop</h3><p>Rejected answers produce hidden corrective instructions and a retry request.</p><p class="why"><strong>Why it matters:</strong> The app improves outputs instead of simply failing silently.</p></div><div class="card"><h3>Automatic retry</h3><p>Retries until approved or the endpoint retry limit is reached.</p><p class="why"><strong>Why it matters:</strong> Gives upstream models a chance to correct mistakes before users see them.</p></div><div class="card"><h3>Human review queue</h3><p>Risky or uncertain outputs can be approved, rejected, edited, regenerated, exported, or annotated.</p><p class="why"><strong>Why it matters:</strong> Critical workflows get human judgment when needed.</p></div><div class="card"><h3>Audit logs</h3><p>JSONL logs record decisions, retry chains, prompt repairs, and endpoint errors.</p><p class="why"><strong>Why it matters:</strong> Post-incident review and hackathon demos have evidence.</p></div><div class="card"><h3>Secret redaction</h3><p>Authorization headers and API keys are hidden in TUI and logs.</p><p class="why"><strong>Why it matters:</strong> Demos and screenshots remain safe to share.</p></div><div class="card"><h3>Privacy mode</h3><p>Can store metadata only instead of full prompts/responses.</p><p class="why"><strong>Why it matters:</strong> Supports sensitive workflows and low-trust environments.</p></div><div class="card"><h3>Per-endpoint profiles</h3><p>Profiles tune criteria for coding, education, medical, finance, legal, research, disaster response, and multilingual use.</p><p class="why"><strong>Why it matters:</strong> Different domains need different review strictness.</p></div><div class="card"><h3>Model manager</h3><p>Lists Gemma model choices and backends including Ollama, llama.cpp, LiteRT, Unsloth, and manual endpoints.</p><p class="why"><strong>Why it matters:</strong> Users can choose speed, quality, or hardware fit.</p></div><div class="card"><h3>Ollama support</h3><p>Recommended local backend with configurable Gemma model tags such as gemma4:e2b and gemma4:e4b.</p><p class="why"><strong>Why it matters:</strong> The easiest path for local Gemma judging.</p></div><div class="card"><h3>llama.cpp support</h3><p>Connects to local/resource-constrained GGUF inference servers.</p><p class="why"><strong>Why it matters:</strong> Supports CPU/GPU constrained local deployments.</p></div><div class="card"><h3>LiteRT edge prefilter</h3><p>Experimental lightweight edge classification path before full judging.</p><p class="why"><strong>Why it matters:</strong> Enables future low-latency edge safety checks.</p></div><div class="card"><h3>Unsloth fine-tuning notebook</h3><p>Public Colab notebook fine-tunes a Witness Gemma 4 E2B judge with LoRA/QLoRA.</p><p class="why"><strong>Why it matters:</strong> Makes the judge specialization reproducible.</p></div><div class="card"><h3>Hugging Face model support</h3><p>The fine-tuned Witness Gemma 4 E2B judge adapter is published on Hugging Face.</p><p class="why"><strong>Why it matters:</strong> Users can download and inspect the model artifact path.</p></div><div class="card"><h3>Blackbox endpoint example</h3><p>A ready endpoint template uses BLACKBOX_API_KEY through environment variables.</p><p class="why"><strong>Why it matters:</strong> Shows real external endpoint use without committing secrets.</p></div><div class="card"><h3>Doctor command</h3><p>Checks backend, model, schema, proxy, logs, endpoint, and optional integrations.</p><p class="why"><strong>Why it matters:</strong> Pre-demo verification is fast and transparent.</p></div><div class="card"><h3>Curl installer</h3><p>Install path can be scripted while still offering safer download-review-run steps.</p><p class="why"><strong>Why it matters:</strong> Accessible for new users and judges.</p></div><div class="card"><h3>Demo mode</h3><p>Deterministic local judge and mock/demo endpoint make the workflow visible without external keys.</p><p class="why"><strong>Why it matters:</strong> Hackathon judges can evaluate the idea even without private API credentials.</p></div></div></div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Screens</div><h2>6. TUI Guide</h2>
+  <p>The Witness is intentionally a modern TUI, not a web GUI. It is designed for developers, local-first users, and hackathon judges who want to see actual endpoint traffic and verification decisions.</p>
+  <div class="two-col"><div class="img-frame"><img src="../../demo_usage/screenshots/05_tui_dashboard.png" alt="Dashboard: backend/model/fallback status, watched endpoints, request statistics, and system health."><div class="caption">Dashboard: backend/model/fallback status, watched endpoints, request statistics, and system health.</div></div><div class="img-frame"><img src="../../demo_usage/screenshots/06_model_manager.png" alt="Model Manager: Ollama, Hugging Face fine-tuned model, llama.cpp, LiteRT, and manual endpoints."><div class="caption">Model Manager: Ollama, Hugging Face fine-tuned model, llama.cpp, LiteRT, and manual endpoints.</div></div></div>
+  <div class="two-col"><div class="img-frame"><img src="../../demo_usage/screenshots/07_endpoint_watchlist.png" alt="Endpoint Watchlist: local proxy URL, upstream URL, profile, strictness, retry limit, and auth redaction."><div class="caption">Endpoint Watchlist: local proxy URL, upstream URL, profile, strictness, retry limit, and auth redaction.</div></div><div class="img-frame"><img src="../../demo_usage/screenshots/08_live_request_stream.png" alt="Live Request Stream: received, forwarded, judging, disapproved, retrying, and approved statuses."><div class="caption">Live Request Stream: received, forwarded, judging, disapproved, retrying, and approved statuses.</div></div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Screens continued</div><h2>7. TUI Deep Dive</h2>
+  <div class="two-col"><div class="img-frame"><img src="../../demo_usage/screenshots/09_verdict_prompt_repair.png" alt="Gemma Verdict and Prompt Repair panel: rejection reason, suggested fix, repaired prompt, and retry status."><div class="caption">Gemma Verdict and Prompt Repair panel: rejection reason, suggested fix, repaired prompt, and retry status.</div></div><div class="img-frame"><img src="../../demo_usage/screenshots/10_logs_audit.png" alt="Logs / Audit screen: full event timeline, rejected/approved events, retry chains, and export path."><div class="caption">Logs / Audit screen: full event timeline, rejected/approved events, retry chains, and export path.</div></div></div>
+  <div class="callout example"><strong>Setup Wizard:</strong> choose backend, choose model, test judge, test proxy, and pass the readiness checklist before the dashboard opens.</div>
+  <div class="callout"><strong>Human Review Queue:</strong> approve, reject, edit, regenerate, export a report, mark unsafe, or add a note when the judge is uncertain or the domain is high-risk.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Getting started</div><h2>8. Installation</h2>
+  <h3>Quick install</h3><pre><code>curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.sh | bash</code></pre>
+  <h3>Safer install</h3><pre><code>curl -fsSL https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.sh -o install.sh
+less install.sh
+bash install.sh</code></pre>
+  <h3>Manual install</h3><pre><code>git clone https://github.com/PLASMA-FR/the-witness.git
+cd the-witness
+cargo build --release
+./target/release/the-witness setup
+./target/release/the-witness doctor
+./target/release/the-witness start</code></pre>
+  <div class="callout"><strong>Requirements:</strong> Rust, Cargo, optional Ollama, optional Gemma models, optional Blackbox API key, optional Hugging Face model. Doctor warnings are normal when optional integrations are not configured.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Gemma and backends</div><h2>9. Model Setup</h2>
+  <div class="two-col"><div>
+  <h3>Default local judge</h3><pre><code>ollama pull gemma4:e2b</code></pre>
+  <p><strong>E2B</strong> is the fast/default judge for quick approval classification.</p>
+  <h3>Strong/high-risk judge</h3><pre><code>ollama pull gemma4:e4b</code></pre>
+  <p><strong>E4B</strong> is stronger for coding and high-risk profiles when hardware allows.</p>
+  </div><div>
+  <h3>Fine-tuned Witness judge</h3><p>https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge</p><pre><code>the-witness model download --source huggingface --model witness-gemma4-e2b-judge</code></pre>
+  <h3>Fine-tuning notebook</h3><p>https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing</p>
+  <p>The notebook fine-tunes a Witness Gemma 4 E2B Judge using Unsloth to output structured JSON verdicts.</p>
+  </div></div>
+  <div class="img-frame"><img src="../../demo_usage/screenshots/12_huggingface_model.png" alt="Hugging Face reference for the fine-tuned Witness Gemma 4 E2B judge adapter."><div class="caption">Hugging Face reference for the fine-tuned Witness Gemma 4 E2B judge adapter.</div></div>
+  <div class="img-frame"><img src="../../demo_usage/screenshots/13_colab_notebook.png" alt="Colab notebook reference for the Unsloth fine-tuning workflow."><div class="caption">Colab notebook reference for the Unsloth fine-tuning workflow.</div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Endpoint watching</div><h2>10. Adding an Endpoint</h2>
+  <p>The Blackbox endpoint example demonstrates how a real upstream provider can be watched without storing secrets in the repository.</p>
+  <h3>Set key safely</h3><pre><code>read -s BLACKBOX_API_KEY
+export BLACKBOX_API_KEY</code></pre>
+  <h3>Add endpoint</h3><pre><code>the-witness endpoint add-blackbox</code></pre>
+  <table><tr><th>Field</th><th>Value</th></tr><tr><td>upstream</td><td>https://api.blackbox.ai/v1</td></tr><tr><td>local proxy</td><td>http://localhost:8787/v1</td></tr><tr><td>model</td><td>blackboxai/x-ai/grok-code-fast-1:free</td></tr><tr><td>profile</td><td>coding</td></tr><tr><td>strictness</td><td>high</td></tr><tr><td>retry limit</td><td>4</td></tr><tr><td>auth</td><td>bearer_env BLACKBOX_API_KEY</td></tr></table>
+  <h3>Test through The Witness</h3><pre><code>curl http://localhost:8787/v1/chat/completions \
+  -H &quot;Authorization: Bearer $BLACKBOX_API_KEY&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;model&quot;: &quot;blackboxai/x-ai/grok-code-fast-1:free&quot;,
+    &quot;messages&quot;: [
+      {
+        &quot;role&quot;: &quot;user&quot;,
+        &quot;content&quot;: &quot;Write a Python script that prints Hello World&quot;
+      }
+    ]
+  }&#x27; </code></pre>
+  <div class="img-frame"><img src="../../demo_usage/screenshots/11_curl_test.png" alt="Curl test: applications call localhost while The Witness forwards, judges, repairs, and returns approved responses."><div class="caption">Curl test: applications call localhost while The Witness forwards, judges, repairs, and returns approved responses.</div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Structured verdicts</div><h2>11. Gemma 4 Judge Schema</h2>
+  <pre><code>{
+  &quot;verdict&quot;: &quot;APPROVED | DISAPPROVED | NEEDS_HUMAN_REVIEW&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;safety_score&quot;: 0,
+  &quot;usefulness_score&quot;: 0,
+  &quot;prompt_alignment_score&quot;: 0,
+  &quot;correctness_risk&quot;: &quot;low | medium | high&quot;,
+  &quot;rejection_reason&quot;: &quot;&quot;,
+  &quot;suggested_fix&quot;: &quot;&quot;,
+  &quot;improved_prompt_instruction&quot;: &quot;&quot;,
+  &quot;requires_human_review&quot;: false
+}</code></pre>
+  <table><tr><th>Field</th><th>Purpose</th></tr><tr><td>verdict</td><td>APPROVED, DISAPPROVED, or NEEDS_HUMAN_REVIEW.</td></tr><tr><td>confidence</td><td>How confident the judge is in the decision.</td></tr><tr><td>safety_score</td><td>Safety assessment for the candidate response.</td></tr><tr><td>usefulness_score</td><td>Whether the answer is practically helpful.</td></tr><tr><td>prompt_alignment_score</td><td>How well the response follows the original user request.</td></tr><tr><td>correctness_risk</td><td>Low, medium, or high risk of factual or operational incorrectness.</td></tr><tr><td>rejection_reason</td><td>Human-readable reason for blocking the answer.</td></tr><tr><td>suggested_fix</td><td>What must change before retrying.</td></tr><tr><td>improved_prompt_instruction</td><td>Hidden corrective instruction used for prompt repair.</td></tr><tr><td>requires_human_review</td><td>Whether The Witness should pause for a person.</td></tr></table>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Repair loop</div><h2>12. Prompt Repair</h2>
+  <p>When Gemma rejects a response, The Witness creates a repaired request that preserves original user intent while adding hidden corrective instructions. It includes the rejection reason, the required fix, and stricter guidance after repeated failures.</p>
+  <div class="two-col"><div class="card"><h3>Rejected attempt</h3><p><strong>Original request:</strong> Write a Python script that prints Hello World.</p><pre><code>print(Hello World)</code></pre><p><span class="badge red">DISAPPROVED</span> Python string is not quoted.</p></div><div class="card"><h3>Repaired attempt</h3><p>The previous answer was rejected because the Python string was not quoted. Generate a corrected answer using valid Python syntax.</p><pre><code>print("Hello World")</code></pre><p><span class="badge green">APPROVED</span> Returned to the app.</p></div></div>
+  <div class="callout warning"><strong>Internal details stay internal:</strong> prompt repair should not leak secrets or unnecessary judge internals to the final user.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Hackathon fit</div><h2>13. Technology Tracks</h2>
+  <div class="track-grid"><div class="track-card"><h3>Ollama</h3><p>The default local judge backend runs Gemma 4 through Ollama. The TUI supports gemma4:e2b, gemma4:e4b, and custom Ollama models.</p></div><div class="track-card"><h3>llama.cpp</h3><p>The project includes a llama.cpp backend for local/resource-constrained inference using Gemma models.</p></div><div class="track-card"><h3>LiteRT</h3><p>The project includes a LiteRT edge prefilter path for lightweight classification before escalating to a full judge. This path should be treated as experimental unless fully configured.</p></div><div class="track-card"><h3>Unsloth</h3><p>The public Colab notebook uses Unsloth and the fine-tuned Witness Gemma 4 E2B judge is published as a Hugging Face adapter.</p></div><div class="track-card"><h3>Cactus-ready</h3><p>The architecture is Cactus-ready for a future mobile companion that routes lightweight checks on-device and heavier checks to the desktop Witness instance. Completed mobile support is not claimed.</p></div></div>
+  <div class="img-frame"><img src="../../gallery/14_track_badge_wall.png" alt="Track badge wall: The Witness spans Ollama, llama.cpp, LiteRT, Unsloth, Hugging Face, and safety/trust positioning."><div class="caption">Track badge wall: The Witness spans Ollama, llama.cpp, LiteRT, Unsloth, Hugging Face, and safety/trust positioning.</div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Impact</div><h2>14. Impact Tracks</h2>
+  <div class="callout track"><strong>Primary impact track: Safety & Trust.</strong> The Witness gives explainable verification, structured verdicts, rejection reasons, prompt repair, human review, and audit logs.</div>
+  <div class="three-col"><div class="card"><h3>Digital Equity & Inclusivity</h3><p>Local-first, low-cost, terminal-native, privacy-friendly, low-bandwidth, and multilingual-ready.</p></div><div class="card"><h3>Future of Education</h3><p>AI tutors can be verified before students see answers.</p></div><div class="card"><h3>Health & Sciences</h3><p>Risky medical/scientific responses can be paused, uncertainty required, and human review triggered.</p></div><div class="card"><h3>Global Resilience</h3><p>Local verification can help field teams and low-connectivity environments where cloud safety tools are unavailable.</p></div></div>
+  <div class="img-frame"><img src="../../gallery/07_impact_track_map.png" alt="Impact map: Safety &amp; Trust is the primary fit, with education, health/sciences, digital equity, and resilience as secondary tracks."><div class="caption">Impact map: Safety &amp; Trust is the primary fit, with education, health/sciences, digital equity, and resilience as secondary tracks.</div></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Demo</div><h2>15. Demo Walkthrough</h2>
+  <ol><li>Install The Witness.</li><li>Pull gemma4:e2b.</li><li>Run setup.</li><li>Start TUI.</li><li>Add endpoint.</li><li>Send curl request.</li><li>The Witness captures the response.</li><li>Gemma rejects a bad response.</li><li>Prompt repair happens.</li><li>Retry succeeds.</li><li>Audit report is saved.</li></ol>
+  <div class="callout example"><strong>Demo assets:</strong> the repository includes <code>demo_usage/</code> with screenshots, a usage video, and a usage section. The <code>gallery/</code> folder contains polished images for Kaggle and GitHub.</div>
+  <table><tr><th>Asset</th><th>Purpose</th></tr><tr><td>demo_usage/full_usage_demo.mp4</td><td>Full usage walkthrough video.</td></tr><tr><td>demo_usage/screenshots/</td><td>Usage screenshots for the writeup/gallery.</td></tr><tr><td>gallery/</td><td>Polished submission visuals and diagrams.</td></tr></table>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Security</div><h2>16. Security and Privacy</h2>
+  <ul><li>API keys are never stored in docs.</li><li>Examples use environment variables.</li><li>Authorization headers are redacted.</li><li>Privacy mode can avoid storing full prompts/responses.</li><li>Logs can store metadata only.</li><li>The project avoids committing tokens or model weights.</li></ul>
+  <div class="callout warning"><strong>Never paste real API keys into GitHub, screenshots, or videos.</strong> Use environment variables such as <code>$BLACKBOX_API_KEY</code> and keep local shell history clean when possible.</div>
+  <div class="card"><h3>Secret redaction example</h3><pre><code>Authorization: Bearer ********
+auth: bearer_env BLACKBOX_API_KEY</code></pre></div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Known boundaries</div><h2>17. Limitations</h2>
+  <ul><li>The Witness reduces risk but does not guarantee correctness.</li><li>Gemma judge decisions can be wrong.</li><li>High-risk medical/legal/financial outputs still need professionals.</li><li>Local performance depends on model and hardware.</li><li>LiteRT may be experimental if not fully tested.</li><li>Cactus/mobile companion is future work unless implemented.</li><li>Streaming support may be limited.</li><li>Fine-tuned model quality depends on training data.</li></ul>
+  <div class="callout"><strong>Honest claim:</strong> The value of The Witness is a practical reliability layer, not a promise of perfect safety.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">Verification</div><h2>18. Reproducibility</h2>
+  <pre><code>cargo fmt
+cargo test
+cargo build
+bash scripts/verify.sh
+the-witness doctor</code></pre>
+  <p>Expected result: build/test should pass. Doctor may warn if Ollama models, Hugging Face tools, external API keys, or optional integrations are missing on the machine.</p>
+  <div class="callout example"><strong>Before a live demo:</strong> run <code>the-witness doctor</code>, make sure the selected backend is reachable, confirm the local proxy port is free, and use demo mode if no external key is configured.</div>
+</div></section>
+
+<section class="page"><div class="content"><div class="section-kicker">References</div><h2>19. Links</h2>
+  <table><tr><th>Resource</th><th>Link</th></tr><tr><td>GitHub repository</td><td>https://github.com/PLASMA-FR/the-witness</td></tr><tr><td>Fine-tuned model</td><td>https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge</td></tr><tr><td>Fine-tuning notebook</td><td>https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing</td></tr><tr><td>Default Ollama tag</td><td>gemma4:e2b</td></tr><tr><td>Strong Ollama tag</td><td>gemma4:e4b</td></tr></table>
+  <div class="callout"><strong>Model names are configurable.</strong> The Witness provides practical defaults but lets users enter any custom Ollama model, path, or local OpenAI-compatible judge endpoint.</div>
+</div></section>
+
+<section class="page final">
+  <h2>20. Final Pitch</h2>
+  <p class="big-quote" style="color:#f5f7fa">The Witness is a local-first reliability firewall for the age of AI agents.</p>
+  <p>As AI systems become more powerful, the question is no longer only:</p>
+  <div class="question">“Can the model answer?”</div>
+  <p>The question is:</p>
+  <div class="question">“Should this answer be allowed to act?”</div>
+  <p>The Witness turns Gemma 4 into the local trust layer that answers that question.</p>
+  <h2 style="margin-top:24px">Do not just trust AI.<br>Let The Witness see it first.</h2>
+</section>
+</body></html>
