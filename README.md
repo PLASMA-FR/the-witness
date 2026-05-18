@@ -10,10 +10,6 @@ Security rule: never commit, print, screenshot, or log API keys or Kaggle tokens
 
 ![The Witness Cover](gallery/01_cover_the_witness.png)
 
-![Architecture](gallery/02_architecture_diagram.png)
-
-![Approval Loop](gallery/03_approval_loop.png)
-
 ![TUI Dashboard](gallery/04_tui_dashboard.png)
 
 ![Model Manager](gallery/06_model_manager_tracks.png)
