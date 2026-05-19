@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use clap::Parser;
 use the_witness::{
     cli::{Cli, Commands},
-    control::{dashboard_access, DashboardOptions},
+    control::{bind_dashboard_listener, dashboard_access, DashboardOptions},
     tailscale::parse_tailscale_ipv4,
 };
 
@@ -68,4 +68,16 @@ fn dashboard_access_detects_tailscale_but_requires_non_loopback_bind() {
     assert!(!access.tailscale.available);
     assert_eq!(access.tailscale.ip.as_deref(), Some("100.101.102.103"));
     assert!(access.tailscale.hint.contains("--host 0.0.0.0"));
+}
+
+#[tokio::test]
+async fn dashboard_bind_failure_explains_port_conflict_before_startup_banner() {
+    let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = occupied.local_addr().unwrap();
+
+    let err = bind_dashboard_listener(addr).await.unwrap_err().to_string();
+
+    assert!(err.contains("dashboard/control API cannot bind"));
+    assert!(err.contains(&addr.to_string()));
+    assert!(err.contains("choose a different --port"));
 }

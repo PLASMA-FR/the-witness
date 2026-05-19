@@ -100,6 +100,14 @@ pub fn dashboard_access(addr: SocketAddr, tailscale_ip: Option<IpAddr>) -> Dashb
     }
 }
 
+pub async fn bind_dashboard_listener(addr: SocketAddr) -> Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::bind(addr).await.with_context(|| {
+        format!(
+            "dashboard/control API cannot bind to {addr}; another process is already using that port or the address is unavailable. Stop the existing service or choose a different --port."
+        )
+    })
+}
+
 pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Result<()> {
     let cfg = load_or_default(&config_path)?;
     let root = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
@@ -108,6 +116,7 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
         .parse()
         .with_context(|| format!("invalid dashboard host {}", opts.host))?;
     let addr = SocketAddr::new(host, opts.port);
+    let listener = bind_dashboard_listener(addr).await?;
     if !host.is_loopback() {
         eprintln!("WARNING: The Witness dashboard/control API is not bound to localhost. API responses redact secrets, but expose this only on trusted networks.");
     }
@@ -134,7 +143,6 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
     if !opts.no_open {
         let _ = open_browser(&access.local_url);
     }
-    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
