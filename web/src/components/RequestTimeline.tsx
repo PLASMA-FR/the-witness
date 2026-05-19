@@ -1,0 +1,1 @@
+import type { RequestEvent } from '../types';import { VerdictBadge } from './VerdictBadge';export function RequestTimeline({events}:{events:RequestEvent[]}){return <div className='timeline'>{events.map((e,i)=><div className='event' key={i}><b>{e.timestamp}</b> <VerdictBadge value={e.status}/> {e.endpoint_name} attempt {e.retry_attempt}</div>)}</div>}

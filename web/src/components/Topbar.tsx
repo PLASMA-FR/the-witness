@@ -1,0 +1,1 @@
+export function Topbar({title,subtitle}:{title:string;subtitle?:string}){return <div className='topbar'><div><h1>{title}</h1>{subtitle&&<p style={{color:'var(--muted)'}}>{subtitle}</p>}</div><div className='pill'>localhost only by default</div></div>}

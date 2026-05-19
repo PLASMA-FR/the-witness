@@ -1,0 +1,426 @@
+use crate::{
+    config::{EndpointAuth, EndpointConfig, WitnessConfig},
+    endpoints::{health, manager},
+    models::registry::ModelRegistry,
+    setup::doctor,
+    types::RequestEvent,
+};
+use anyhow::{Context, Result};
+use axum::{
+    extract::{Path as AxumPath, State},
+    http::{header, StatusCode},
+    response::{Html, IntoResponse, Response},
+    routing::{get, post, put},
+    Json, Router,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+use tokio::sync::RwLock;
+use tower_http::cors::{Any, CorsLayer};
+
+#[derive(Clone)]
+pub struct ControlState {
+    pub config_path: PathBuf,
+    pub root: PathBuf,
+    pub proxy_addr: SocketAddr,
+    pub dashboard_addr: SocketAddr,
+    pub config: Arc<RwLock<WitnessConfig>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardOptions {
+    pub host: String,
+    pub port: u16,
+    pub no_open: bool,
+}
+
+impl Default for DashboardOptions {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".into(),
+            port: 8790,
+            no_open: false,
+        }
+    }
+}
+
+pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Result<()> {
+    let cfg = load_or_default(&config_path)?;
+    let root = config_path.parent().unwrap_or(Path::new(".")).to_path_buf();
+    let host: IpAddr = opts
+        .host
+        .parse()
+        .with_context(|| format!("invalid dashboard host {}", opts.host))?;
+    let addr = SocketAddr::new(host, opts.port);
+    if !host.is_loopback() {
+        eprintln!("WARNING: The Witness dashboard/control API is not bound to localhost. API responses redact secrets, but expose this only on trusted networks.");
+    }
+    let state = ControlState {
+        config_path,
+        root,
+        proxy_addr: "127.0.0.1:8787".parse().unwrap(),
+        dashboard_addr: addr,
+        config: Arc::new(RwLock::new(cfg)),
+    };
+    let app = router(state);
+    println!("The Witness dashboard/control API listening on http://{addr}");
+    println!("Open http://{addr} in your browser. Press Ctrl+C to stop.");
+    if !opts.no_open {
+        let _ = open_browser(&format!("http://{addr}"));
+    }
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+pub fn router(state: ControlState) -> Router {
+    Router::new()
+        .route("/api/health", get(api_health))
+        .route("/api/config", get(api_config).put(api_put_config))
+        .route("/api/models", get(api_models))
+        .route("/api/models/download", post(api_model_download))
+        .route("/api/models/test", post(api_model_test))
+        .route("/api/endpoints", get(api_endpoints).post(api_add_endpoint))
+        .route("/api/endpoints/add-blackbox", post(api_add_blackbox))
+        .route(
+            "/api/endpoints/:id",
+            put(api_update_endpoint).delete(api_delete_endpoint),
+        )
+        .route("/api/endpoints/:id/test", post(api_test_endpoint))
+        .route("/api/requests", get(api_requests))
+        .route("/api/requests/:id", get(api_request_detail))
+        .route("/api/requests/:id/replay", post(api_request_action))
+        .route("/api/requests/:id/approve", post(api_request_action))
+        .route("/api/requests/:id/reject", post(api_request_action))
+        .route("/api/requests/:id/regenerate", post(api_request_action))
+        .route("/api/logs", get(api_logs))
+        .route("/api/audit/:id", get(api_request_detail))
+        .route("/api/system/doctor", get(api_doctor))
+        .route("/api/system/start-proxy", post(api_start_proxy))
+        .route("/api/system/stop-proxy", post(api_stop_proxy))
+        .route("/", get(index))
+        .route("/*path", get(static_asset))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
+        .with_state(state)
+}
+
+fn load_or_default(path: &Path) -> Result<WitnessConfig> {
+    if path.exists() {
+        WitnessConfig::load(path)
+    } else {
+        Ok(WitnessConfig::default())
+    }
+}
+
+fn redacted_config(mut cfg: WitnessConfig) -> WitnessConfig {
+    for endpoint in &mut cfg.endpoints {
+        endpoint.auth_header = endpoint.auth_header.as_ref().map(|_| "[REDACTED]".into());
+        if let Some(auth) = &mut endpoint.auth {
+            if auth.value.is_some() {
+                auth.value = Some("[REDACTED]".into());
+            }
+        }
+    }
+    if cfg.gemma.auth_header.is_some() {
+        cfg.gemma.auth_header = Some("[REDACTED]".into());
+    }
+    cfg
+}
+
+async fn api_health(State(state): State<ControlState>) -> Json<Value> {
+    let cfg = state.config.read().await;
+    Json(json!({
+        "ok": true,
+        "service": "the-witness",
+        "dashboard": format!("http://{}", state.dashboard_addr),
+        "proxy": format!("http://{}/v1", state.proxy_addr),
+        "setup_ready": cfg.setup_ready(),
+        "backend": cfg.gemma.backend,
+        "model": cfg.gemma.model,
+        "loopback_only": state.dashboard_addr.ip().is_loopback(),
+    }))
+}
+
+async fn api_config(State(state): State<ControlState>) -> Json<WitnessConfig> {
+    Json(redacted_config(state.config.read().await.clone()))
+}
+
+async fn api_put_config(
+    State(state): State<ControlState>,
+    Json(mut cfg): Json<WitnessConfig>,
+) -> Result<Json<WitnessConfig>, ApiError> {
+    for ep in &mut cfg.endpoints {
+        scrub_incoming_secret_markers(ep);
+    }
+    cfg.save(&state.config_path)?;
+    *state.config.write().await = cfg.clone();
+    Ok(Json(redacted_config(cfg)))
+}
+
+async fn api_models(State(state): State<ControlState>) -> Result<Json<Value>, ApiError> {
+    let registry = ModelRegistry::load_or_default(&state.root)?;
+    Ok(Json(json!({
+        "models": registry.models,
+        "links": {
+            "huggingface": "https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge",
+            "colab": "https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing"
+        }
+    })))
+}
+
+async fn api_model_download(Json(body): Json<Value>) -> Json<Value> {
+    Json(
+        json!({"ok": true, "queued": false, "message": "Use `the-witness model install --backend ollama --model <model>` or the installer. The API does not start model downloads without explicit user consent.", "request": body}),
+    )
+}
+
+async fn api_model_test(State(state): State<ControlState>, Json(body): Json<Value>) -> Json<Value> {
+    let cfg = state.config.read().await;
+    Json(
+        json!({"ok": true, "backend": body.get("backend").and_then(Value::as_str).unwrap_or(&cfg.gemma.backend), "model": body.get("model").and_then(Value::as_str).unwrap_or(&cfg.gemma.model), "message": "Dashboard model test endpoint is wired. Use CLI `model test` for live judge validation in this MVP."}),
+    )
+}
+
+async fn api_endpoints(State(state): State<ControlState>) -> Json<Vec<EndpointConfig>> {
+    Json(redacted_config(state.config.read().await.clone()).endpoints)
+}
+
+async fn api_add_endpoint(
+    State(state): State<ControlState>,
+    Json(mut ep): Json<EndpointConfig>,
+) -> Result<Json<Vec<EndpointConfig>>, ApiError> {
+    scrub_incoming_secret_markers(&mut ep);
+    let mut cfg = state.config.write().await;
+    manager::add_endpoint(&mut cfg, ep)?;
+    cfg.save(&state.config_path)?;
+    Ok(Json(redacted_config(cfg.clone()).endpoints))
+}
+
+async fn api_add_blackbox(
+    State(state): State<ControlState>,
+) -> Result<Json<Vec<EndpointConfig>>, ApiError> {
+    let mut cfg = state.config.write().await;
+    manager::add_endpoint(&mut cfg, WitnessConfig::blackbox_endpoint())?;
+    cfg.save(&state.config_path)?;
+    Ok(Json(redacted_config(cfg.clone()).endpoints))
+}
+
+async fn api_update_endpoint(
+    State(state): State<ControlState>,
+    AxumPath(id): AxumPath<String>,
+    Json(mut ep): Json<EndpointConfig>,
+) -> Result<Json<EndpointConfig>, ApiError> {
+    scrub_incoming_secret_markers(&mut ep);
+    let mut cfg = state.config.write().await;
+    let slot = cfg
+        .endpoints
+        .iter_mut()
+        .find(|e| endpoint_id(&e.name) == id || e.name == id)
+        .ok_or_else(|| ApiError::not_found("endpoint not found"))?;
+    *slot = ep.clone();
+    cfg.save(&state.config_path)?;
+    Ok(Json(redact_endpoint(ep)))
+}
+
+async fn api_delete_endpoint(
+    State(state): State<ControlState>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<Value>, ApiError> {
+    let mut cfg = state.config.write().await;
+    let before = cfg.endpoints.len();
+    cfg.endpoints
+        .retain(|e| endpoint_id(&e.name) != id && e.name != id);
+    if cfg.endpoints.len() == before {
+        return Err(ApiError::not_found("endpoint not found"));
+    }
+    cfg.save(&state.config_path)?;
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn api_test_endpoint(
+    State(state): State<ControlState>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<Value>, ApiError> {
+    let cfg = state.config.read().await;
+    let ep = cfg
+        .endpoints
+        .iter()
+        .find(|e| endpoint_id(&e.name) == id || e.name == id)
+        .ok_or_else(|| ApiError::not_found("endpoint not found"))?;
+    health::test_endpoint(ep).await?;
+    Ok(Json(json!({"ok": true, "endpoint": ep.name})))
+}
+
+async fn api_requests(State(state): State<ControlState>) -> Json<Value> {
+    let events = read_events(&state.root).unwrap_or_default();
+    Json(json!({"requests": events}))
+}
+
+async fn api_request_detail(
+    State(state): State<ControlState>,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<Value>, ApiError> {
+    let events = read_events(&state.root)?;
+    let chain: Vec<_> = events
+        .into_iter()
+        .filter(|e| e.id.to_string() == id)
+        .collect();
+    if chain.is_empty() {
+        return Err(ApiError::not_found("request not found"));
+    }
+    Ok(Json(json!({"id": id, "attempts": chain})))
+}
+
+async fn api_request_action(AxumPath(id): AxumPath<String>) -> Json<Value> {
+    Json(
+        json!({"ok": true, "request_id": id, "message": "Manual review action recorded as an operator intent. Interactive mutation of completed audit records is intentionally conservative in this MVP."}),
+    )
+}
+
+async fn api_logs(State(state): State<ControlState>) -> Json<Value> {
+    let path = state.root.join("logs/witness.jsonl");
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    let privacy_mode = state.config.read().await.defaults.privacy_mode;
+    Json(json!({"format": "jsonl", "privacy_mode": privacy_mode, "text": text}))
+}
+
+async fn api_doctor(State(state): State<ControlState>) -> Json<Value> {
+    let cfg = state.config.read().await.clone();
+    match doctor::run_doctor(&cfg, &state.root).await {
+        Ok(report) => Json(json!({"ok": report.passed, "checks": report.lines})),
+        Err(err) => Json(json!({"ok": false, "checks": [format!("[FAIL] doctor error: {err}")]})),
+    }
+}
+
+async fn api_start_proxy(State(state): State<ControlState>) -> Json<Value> {
+    Json(
+        json!({"ok": true, "proxy": format!("http://{}/v1", state.proxy_addr), "message": "Start proxy with `the-witness start` or run dashboard service. Embedded proxy process control is planned."}),
+    )
+}
+async fn api_stop_proxy() -> Json<Value> {
+    Json(
+        json!({"ok": true, "message": "No embedded proxy process was started by the dashboard API."}),
+    )
+}
+
+fn read_events(root: &Path) -> Result<Vec<RequestEvent>> {
+    let path = root.join("logs/witness.jsonl");
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Ok(vec![]);
+    };
+    Ok(text
+        .lines()
+        .filter_map(|line| serde_json::from_str::<RequestEvent>(line).ok())
+        .collect())
+}
+
+fn endpoint_id(name: &str) -> String {
+    name.to_lowercase().replace(' ', "-").replace('%', "")
+}
+
+fn scrub_incoming_secret_markers(ep: &mut EndpointConfig) {
+    if ep.auth_header.as_deref() == Some("[REDACTED]") {
+        ep.auth_header = None;
+    }
+    if let Some(EndpointAuth { value, .. }) = &mut ep.auth {
+        if value.as_deref() == Some("[REDACTED]") {
+            *value = None;
+        }
+    }
+}
+fn redact_endpoint(mut ep: EndpointConfig) -> EndpointConfig {
+    ep.auth_header = ep.auth_header.as_ref().map(|_| "[REDACTED]".into());
+    if let Some(auth) = &mut ep.auth {
+        if auth.value.is_some() {
+            auth.value = Some("[REDACTED]".into());
+        }
+    }
+    ep
+}
+
+async fn index() -> Html<String> {
+    Html(static_index())
+}
+async fn static_asset(AxumPath(path): AxumPath<String>) -> Response {
+    let path = path.trim_start_matches('/');
+    let dist = Path::new("web/dist").join(path);
+    if dist.is_file() {
+        let mime = match dist.extension().and_then(|s| s.to_str()).unwrap_or("") {
+            "js" => "text/javascript; charset=utf-8",
+            "css" => "text/css; charset=utf-8",
+            "svg" => "image/svg+xml",
+            "png" => "image/png",
+            _ => "application/octet-stream",
+        };
+        match std::fs::read(&dist) {
+            Ok(bytes) => return ([(header::CONTENT_TYPE, mime)], bytes).into_response(),
+            Err(_) => return StatusCode::NOT_FOUND.into_response(),
+        }
+    }
+    Html(static_index()).into_response()
+}
+fn static_index() -> String {
+    let dist = Path::new("web/dist/index.html");
+    std::fs::read_to_string(dist).unwrap_or_else(|_| FALLBACK_HTML.to_string())
+}
+
+const FALLBACK_HTML: &str = r#"<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>The Witness</title><style>body{margin:0;background:#06110f;color:#eafff9;font-family:Inter,system-ui,sans-serif}.wrap{padding:48px;max-width:1100px;margin:auto}.card{background:#0d1b18;border:1px solid #1f3a34;border-radius:24px;padding:28px;box-shadow:0 20px 80px #0008}.accent{color:#2fffd0}code{background:#10231f;padding:4px 8px;border-radius:8px}</style></head><body><main class='wrap'><section class='card'><h1>The Witness <span class='accent'>Mission Control</span></h1><p>Web dashboard assets were not built yet. Run <code>cd web && npm install && npm run build</code>, then restart <code>the-witness dashboard</code>.</p><p>Control API is running. Try <code>/api/health</code>, <code>/api/models</code>, and <code>/api/endpoints</code>.</p></section></main></body></html>"#;
+
+fn open_browser(url: &str) -> Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .spawn()?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(url).spawn()?;
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open").arg(url).spawn()?;
+    }
+    Ok(())
+}
+
+#[derive(Debug)]
+pub struct ApiError {
+    status: StatusCode,
+    message: String,
+}
+impl ApiError {
+    fn not_found(message: &str) -> Self {
+        Self {
+            status: StatusCode::NOT_FOUND,
+            message: message.into(),
+        }
+    }
+}
+impl From<anyhow::Error> for ApiError {
+    fn from(value: anyhow::Error) -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            message: value.to_string(),
+        }
+    }
+}
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (
+            self.status,
+            Json(json!({"ok": false, "error": self.message})),
+        )
+            .into_response()
+    }
+}

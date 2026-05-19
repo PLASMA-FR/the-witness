@@ -1,0 +1,1 @@
+import type { Endpoint } from '../types';export function EndpointCard({e}:{e:Endpoint}){return <div className='card'><h3>{e.name}</h3><p className='mono'>{e.local_proxy_url}</p><p>{e.profile} · {e.strictness} · retry {e.retry_limit}</p></div>}

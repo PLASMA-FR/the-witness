@@ -1,8 +1,9 @@
 use crate::{
     config::{EndpointConfig, FallbackMode, Strictness, WitnessConfig},
+    control::{self, DashboardOptions},
     endpoints::manager,
     judge::gemma::{DemoJudge, OpenAiCompatibleJudge},
-    setup,
+    service, setup,
     storage::jsonl::JsonlLogger,
     tui::app::App,
 };
@@ -44,6 +45,18 @@ pub enum Commands {
         #[arg(long)]
         proxy_addr: Option<SocketAddr>,
     },
+    Dashboard {
+        #[arg(long)]
+        no_open: bool,
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        #[arg(long, default_value_t = 8790)]
+        port: u16,
+    },
+    Service {
+        #[command(subcommand)]
+        command: ServiceCommands,
+    },
     Model {
         #[command(subcommand)]
         command: ModelCommands,
@@ -62,6 +75,16 @@ pub enum Commands {
         format: String,
     },
 }
+#[derive(Subcommand, Debug)]
+pub enum ServiceCommands {
+    Install,
+    Uninstall,
+    Start,
+    Stop,
+    Status,
+    Logs,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum ModelCommands {
     List,
@@ -134,6 +157,22 @@ pub async fn run() -> Result<()> {
         }
         Commands::Doctor => doctor(&path).await,
         Commands::Start { proxy_addr } => start(&path, proxy_addr).await,
+        Commands::Dashboard {
+            no_open,
+            host,
+            port,
+        } => {
+            control::serve_dashboard(
+                path,
+                DashboardOptions {
+                    host,
+                    port,
+                    no_open,
+                },
+            )
+            .await
+        }
+        Commands::Service { command } => service_command(command),
         Commands::Model { command } => model(&path, command).await,
         Commands::Endpoint { command } => endpoint(&path, command).await,
         Commands::Logs => {
@@ -157,6 +196,33 @@ pub async fn run() -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn service_command(command: ServiceCommands) -> Result<()> {
+    match command {
+        ServiceCommands::Install => {
+            service::install()?;
+            println!("The Witness service installed for this user.");
+        }
+        ServiceCommands::Uninstall => {
+            service::uninstall()?;
+            println!("The Witness service removed.");
+        }
+        ServiceCommands::Start => {
+            service::start()?;
+            println!("The Witness service start requested.");
+        }
+        ServiceCommands::Stop => {
+            service::stop()?;
+            println!("The Witness service stop requested.");
+        }
+        ServiceCommands::Status => {
+            let status = service::status()?;
+            println!("{}", serde_json::to_string_pretty(&status)?);
+        }
+        ServiceCommands::Logs => println!("{}", service::logs()?),
+    }
+    Ok(())
 }
 
 pub fn replay_request_summary(root: &Path, request_id: &str) -> Result<String> {

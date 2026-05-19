@@ -38,3 +38,4 @@ logs/*.jsonl
 /the-witness-video-assets/
 /build_video_asset_pack.py
 /write_asset_pack_docs.py
+web/node_modules/

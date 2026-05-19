@@ -1,0 +1,1 @@
+export function StatCard({label,value,tone}:{label:string;value:string|number;tone?:string}){return <section className='card stat'><div className='label'>{label}</div><div className='value' style={{color:tone}}>{value}</div></section>}

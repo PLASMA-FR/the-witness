@@ -70,6 +70,182 @@ Then test:
 the-witness model test --backend ollama --model gemma4:e2b
 ```
 
+
+## Web Dashboard
+
+The Witness now includes a full local Web UI mission-control dashboard in addition to the TUI.
+
+```bash
+the-witness dashboard
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8790
+```
+
+Run without opening a browser:
+
+```bash
+the-witness dashboard --no-open
+the-witness dashboard --host 127.0.0.1 --port 8790
+```
+
+The dashboard exposes a localhost-only control API by default:
+
+```text
+GET  /api/health
+GET  /api/config
+PUT  /api/config
+GET  /api/models
+POST /api/models/download
+POST /api/models/test
+GET  /api/endpoints
+POST /api/endpoints
+PUT  /api/endpoints/:id
+DELETE /api/endpoints/:id
+POST /api/endpoints/:id/test
+POST /api/endpoints/add-blackbox
+GET  /api/requests
+GET  /api/requests/:id
+POST /api/requests/:id/replay
+POST /api/requests/:id/approve
+POST /api/requests/:id/reject
+POST /api/requests/:id/regenerate
+GET  /api/logs
+GET  /api/audit/:id
+GET  /api/system/doctor
+POST /api/system/start-proxy
+POST /api/system/stop-proxy
+```
+
+Security notes:
+
+- The control API binds to `127.0.0.1` by default.
+- If you bind it to a non-localhost address, The Witness prints a warning.
+- API responses redact auth headers and static secret values.
+- Prefer auth types `bearer_env` and `header_env`; do not put raw secrets in Git.
+
+Web UI pages:
+
+- Dashboard with request/approval/latency charts and live activity feed.
+- Endpoint Manager with add/edit/delete/test/copy URL/copy curl and Blackbox one-click setup.
+- Live Requests table with filters/search and detail navigation.
+- Request Detail with prompt, candidate/final response, verdict JSON, retry chain, and actions.
+- Prompt Repair workspace.
+- Human Review Queue.
+- Model Manager for Ollama Gemma 4 E2B/E4B, HF/Unsloth, llama.cpp, LiteRT, and manual endpoints.
+- Logs/Audit viewer.
+- Doctor/System Health.
+- Settings and service information.
+
+## Windows Quick Install
+
+PowerShell one-liner:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.ps1 | iex"
+```
+
+Safer inspect-first install:
+
+```powershell
+curl.exe -L https://raw.githubusercontent.com/PLASMA-FR/the-witness/main/scripts/install.ps1 -o install.ps1
+notepad install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+## Run Web Dashboard
+
+```bash
+the-witness dashboard
+```
+
+Open:
+
+```text
+http://127.0.0.1:8790
+```
+
+## Run TUI
+
+```bash
+the-witness start
+```
+
+## Background service
+
+Linux/macOS/Windows command surface:
+
+```bash
+the-witness service install
+the-witness service start
+the-witness service status
+the-witness service logs
+the-witness service stop
+the-witness service uninstall
+```
+
+Platform details:
+
+| Platform | Method | Status |
+|---|---|---|
+| Linux | systemd user service | Implemented and Linux-tested |
+| macOS | launchd user agent | Implemented, needs macOS validation |
+| Windows | per-user Scheduled Task fallback | Implemented, needs Windows validation |
+
+See [`docs/services.md`](docs/services.md), [`docs/linux.md`](docs/linux.md), [`docs/macos.md`](docs/macos.md), and [`docs/windows.md`](docs/windows.md).
+
+## Add Blackbox endpoint
+
+Linux/macOS:
+
+```bash
+export BLACKBOX_API_KEY="YOUR_KEY_HERE"
+the-witness endpoint add-blackbox
+```
+
+Windows PowerShell:
+
+```powershell
+$env:BLACKBOX_API_KEY="YOUR_KEY_HERE"
+the-witness endpoint add-blackbox
+```
+
+Configured defaults:
+
+- upstream: `https://api.blackbox.ai/v1`
+- local proxy: `http://localhost:8787/Blackbox%20Grok%20Code/v1`
+- model: `blackboxai/x-ai/grok-code-fast-1:free`
+- auth env var: `BLACKBOX_API_KEY`
+- profile: `coding`
+- strictness: `high`
+- retry limit: `4`
+
+## Test proxy
+
+Use the endpoint-specific local proxy URL shown by `the-witness endpoint list` or in the Web UI:
+
+```bash
+curl http://localhost:8787/Blackbox%20Grok%20Code/v1/chat/completions \
+  -H 'content-type: application/json' \
+  -d '{"model":"blackboxai/x-ai/grok-code-fast-1:free","messages":[{"role":"user","content":"Say hello"}]}'
+```
+
+## Platform support
+
+| Area | Linux | macOS | Windows |
+|---|---:|---:|---:|
+| CLI | Tested | Expected | Expected |
+| TUI | Tested | Expected | Expected terminal support |
+| Web dashboard | Tested | Expected | Expected |
+| Control API | Tested | Expected | Expected |
+| Installer | Tested shell script | Shell script created | PowerShell script created |
+| Service | systemd user service | launchd user agent | Scheduled Task fallback |
+
+Only Linux was actually tested in this development environment. Windows and macOS support is implemented but must be validated on those operating systems before claiming production support.
+
 ## TUI usage
 
 ```bash

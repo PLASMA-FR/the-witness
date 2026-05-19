@@ -162,7 +162,14 @@ The Witness install complete.
 Next steps:
   the-witness setup
   the-witness doctor
-  the-witness start
+  the-witness dashboard
+  # then open http://127.0.0.1:8790
+  the-witness start      # terminal/TUI + proxy mode
+
+Optional background service:
+  the-witness service install
+  the-witness service start
+  the-witness service status
 
 Optional Blackbox endpoint test:
   export BLACKBOX_API_KEY="YOUR_KEY_HERE"

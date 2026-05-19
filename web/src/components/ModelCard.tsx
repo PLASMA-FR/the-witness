@@ -1,0 +1,1 @@
+import type { ModelEntry } from '../types';export function ModelCard({m,onTest}:{m:ModelEntry;onTest:()=>void}){return <div className='card'><h3>{m.display_name}</h3><p>{m.backend} · <span className='mono'>{m.model}</span></p><p style={{color:'var(--muted)'}}>{m.source} {m.slug}</p><button className='btn' onClick={onTest}>Test model</button></div>}
