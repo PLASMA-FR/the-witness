@@ -48,15 +48,15 @@ import { api } from './api/client';
 import type { Config, Endpoint, Health, ModelEntry, RequestEvent } from './types';
 
 const pages = [
-  { name: 'Dashboard', short: 'Home', icon: Home, help: 'Safety overview' },
-  { name: 'Endpoints', short: 'Endpoints', icon: Radar, help: 'Watch routes' },
+  { name: 'Dashboard', short: 'Mission', icon: Home, help: 'Safety overview' },
+  { name: 'Endpoints', short: 'Endpoints', icon: Radar, help: 'Watched routes' },
   { name: 'Requests', short: 'Requests', icon: Activity, help: 'Live stream' },
   { name: 'Request Detail', short: 'Detail', icon: FileText, help: 'Retry chain' },
   { name: 'Prompt Repair', short: 'Repair', icon: Sparkles, help: 'Fix loop' },
-  { name: 'Human Review', short: 'Review', icon: HeartHandshake, help: 'Decisions' },
-  { name: 'Models', short: 'Models', icon: Bot, help: 'Judge brain' },
-  { name: 'Logs', short: 'Logs', icon: ListChecks, help: 'Audit trail' },
-  { name: 'Doctor', short: 'Doctor', icon: TestTube2, help: 'Readiness' },
+  { name: 'Human Review', short: 'Review', icon: HeartHandshake, help: 'Human decisions' },
+  { name: 'Models', short: 'Models', icon: Bot, help: 'Judge setup' },
+  { name: 'Logs', short: 'Audit', icon: ListChecks, help: 'Decision trail' },
+  { name: 'Doctor', short: 'System', icon: TestTube2, help: 'Readiness' },
   { name: 'Settings', short: 'Settings', icon: SettingsIcon, help: 'Preferences' },
 ];
 
@@ -236,7 +236,7 @@ function pageComponent(page: PageName) {
       case 'Request Detail': return <RequestDetailPage {...data} />;
       case 'Prompt Repair': return <PromptRepairPage />;
       case 'Human Review': return <HumanReviewPage />;
-      case 'Models': return <ModelsPage {...data} />;
+      case 'Models': return <ModelsPage config={config} {...data} />;
       case 'Logs': return <LogsPage {...data} />;
       case 'Doctor': return <DoctorPage />;
       case 'Settings': return <SettingsPage config={config} {...data} />;
@@ -299,7 +299,7 @@ function Topbar({ health, page, openMenu }: { health?: Health; page: PageName; o
       <button className="icon-button menu-button" aria-label="Open navigation" onClick={openMenu}><Menu size={22} /></button>
       <div className="topbar-title">
         <span className="status-dot" aria-hidden="true" />
-        <span>{page === 'Models' ? 'Choose how The Witness thinks' : page}</span>
+        <span>{topbarTitle(page)}</span>
       </div>
       <div className="topbar-actions">
         <StatusPill tone="good" label={health?.ok ? 'Service running' : 'Needs setup'} />
@@ -349,8 +349,8 @@ function DashboardPage({ health, config, requests, setPage }: AppData & { config
 
   return (
     <>
-      <PageHeader kicker="AI safety mission control" title="The Witness is watching" actions={<><PrimaryButton onClick={() => setPage('Endpoints')}>Add endpoint</PrimaryButton><PrimaryButton tone="ghost" onClick={() => setPage('Doctor')}>Run doctor</PrimaryButton></>}>
-        Every endpoint you route through the local proxy is checked by Gemma before a response reaches your app.
+      <PageHeader kicker="AI safety mission control" title="Mission Control" actions={<><PrimaryButton onClick={() => setPage('Endpoints')}>Add endpoint</PrimaryButton><PrimaryButton tone="ghost" onClick={() => setPage('Doctor')}>Run system check</PrimaryButton></>}>
+        Watch endpoints, review verdicts, and see what The Witness is protecting right now.
       </PageHeader>
       <section className="hero-grid">
         <article className="hero-status panel">
@@ -369,7 +369,7 @@ function DashboardPage({ health, config, requests, setPage }: AppData & { config
         <MetricCard icon={Radar} label="Active endpoints" value={endpoints.filter((e) => e.enabled).length} detail="watch routes online" />
         <MetricCard icon={Activity} label="Requests today" value={requests.length} detail="demo fills empty logs" tone="blue" />
         <MetricCard icon={ShieldCheck} label="Approved" value={approved} detail="released to app" tone="green" />
-        <MetricCard icon={ShieldAlert} label="Disapproved" value={disapproved} detail="blocked before release" tone="red" />
+        <MetricCard icon={ShieldAlert} label="Blocked" value={disapproved} detail="stopped before app" tone="red" />
         <MetricCard icon={HeartHandshake} label="Human review" value={review} detail="needs a decision" tone="amber" />
         <MetricCard icon={Gauge} label="Avg latency" value={`${avgLatency}ms`} detail="judge + proxy" tone="blue" />
         <MetricCard icon={RefreshCcw} label="Retry count" value={retries} detail="repairs attempted" tone="amber" />
@@ -466,7 +466,7 @@ function EndpointsPage({ config, reload, setPage }: AppData & { config: Config }
   const endpoints = config.endpoints.length ? config.endpoints : demoEndpoints;
   const [form, setForm] = useState<Endpoint>(demoEndpoints[0]);
   const save = async () => { await api.addEndpoint(form); reload(); };
-  return <><PageHeader kicker="Endpoint manager" title="Add one AI endpoint. Watch every response." actions={<PrimaryButton onClick={() => api.addBlackbox().then(reload).catch(() => alert('Set BLACKBOX_API_KEY first. The secret stays in your environment.'))}><Zap size={17} /> Blackbox quick add</PrimaryButton>}>
+  return <><PageHeader kicker="Watched endpoints" title="Add the AI endpoints you want The Witness to protect" actions={<PrimaryButton onClick={() => api.addBlackbox().then(reload).catch(() => alert('BLACKBOX_API_KEY is not set. The Blackbox endpoint uses this environment variable instead of storing your key. Run: export BLACKBOX_API_KEY="YOUR_KEY_HERE"'))}><Zap size={17} /> Add Blackbox endpoint</PrimaryButton>}>
     Create local proxy routes, choose validation profiles, test auth, and copy ready-to-run curl commands.
   </PageHeader>
   <section className="endpoint-layout">
@@ -480,7 +480,7 @@ function EndpointsPage({ config, reload, setPage }: AppData & { config: Config }
       <h3>Blackbox Grok Code</h3>
       <p>One-click coding endpoint with bearer auth from BLACKBOX_API_KEY and high strictness.</p>
       <code>blackboxai/x-ai/grok-code-fast-1:free</code>
-      <PrimaryButton onClick={() => api.addBlackbox().then(reload).catch(() => alert('BLACKBOX_API_KEY is missing. Export it and try again.'))}>Create Blackbox endpoint</PrimaryButton>
+      <PrimaryButton onClick={() => api.addBlackbox().then(reload).catch(() => alert('BLACKBOX_API_KEY is not set. Export BLACKBOX_API_KEY="YOUR_KEY_HERE" and try again.'))}>Create Blackbox endpoint</PrimaryButton>
     </article>
   </section>
   <section className="endpoint-card-grid">{endpoints.map((endpoint) => <EndpointCard key={endpoint.name} endpoint={endpoint} reload={reload} onRequests={() => setPage('Requests')} onEdit={() => setForm(endpoint)} />)}</section>
@@ -512,41 +512,64 @@ function RequestsPage({ requests, setSelected, setPage }: AppData) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const items = (requests.length ? requests : demoRequests).filter((r) => (filter === 'all' || statusOf(r).includes(filter)) && JSON.stringify(r).toLowerCase().includes(query.toLowerCase()));
-  return <><PageHeader kicker="Live request stream" title="See the approval loop as it happens"><span>Filter by status, endpoint, verdict, profile, or request ID. Judging and retry states are intentionally loud.</span></PageHeader><div className="filter-bar"><label><Search size={17} /> <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search endpoint, profile, request ID" /></label>{['all', 'approved', 'disapproved', 'human', 'retrying'].map((f) => <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>{f}</button>)}</div><section className="request-list">{items.map((r) => <RequestCard key={r.id} request={r} onOpen={() => { setSelected(r.id); setPage('Request Detail'); }} />)}</section></>;
+  return <><PageHeader kicker="Live requests" title="Every request passing through The Witness appears here"><span>Filter by status, endpoint, verdict, profile, or request ID. Judging and retry states stay visible so operators know what is happening.</span></PageHeader><div className="filter-bar"><label><Search size={17} /> <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search endpoint, profile, request ID" /></label>{['all', 'approved', 'disapproved', 'human', 'retrying'].map((f) => <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>{f === 'disapproved' ? 'blocked' : f}</button>)}</div><section className="request-list">{items.length ? items.map((r) => <RequestCard key={r.id} request={r} onOpen={() => { setSelected(r.id); setPage('Request Detail'); }} />) : <EmptyState title="No requests yet" action="Open endpoints" onAction={() => setPage('Endpoints')}>Send a request through a watched endpoint and the approval loop will appear here.</EmptyState>}</section></>;
 }
 
 function RequestCard({ request, onOpen }: { request: RequestEvent; onOpen: () => void }) {
-  return <button className="request-card" onClick={onOpen}><span className="request-id">{request.id}</span><strong>{request.endpoint_name}</strong><span>{request.model ?? 'model'} · {request.profile}</span><VerdictBadge status={request.status} /><span>{request.retry_attempt} attempts</span><span>{request.latency_ms}ms</span><time>{timeAgo(request.timestamp)}</time></button>;
+  return <button className="request-card" onClick={onOpen}><span className="request-id">{request.id}</span><strong>{request.endpoint_name}</strong><span>{request.model ?? 'model'} · {request.profile}</span><VerdictBadge status={request.status} /><span>{request.retry_attempt === 1 ? '1 attempt' : `${request.retry_attempt} attempts`}</span><span>{request.latency_ms}ms</span><time>{timeAgo(request.timestamp)}</time></button>;
 }
 
 function RequestDetailPage({ requests, selected }: AppData) {
   const req = requests.find((r) => r.id === selected) ?? demoRequests[0];
-  return <><PageHeader kicker="Request detail" title="The retry chain, explained"><span>This is the proof trail: prompt, candidate, verdict, repair, and the final answer released to the app.</span></PageHeader><section className="detail-grid"><Panel title="Prompt and response" description={`Request ${req.id}`}><CodeBlock title="Original request" code={'Write a Python script that prints Hello World'} /><PromptDiff rejected={'print(Hello World)'} approved={'print("Hello World")'} /><CodeBlock title="Final approved response" code={String(req.final_response ?? 'print("Hello World")')} /></Panel><Panel title="Gemma verdict" description="Structured JSON from the local judge."><VerdictBadge status={req.status} /><CodeBlock title="Verdict JSON" code={JSON.stringify({ verdict: 'DISAPPROVED', confidence: 0.92, safety_score: 96, usefulness_score: 74, prompt_alignment_score: 88, correctness_risk: 'medium', rejection_reason: 'Python string is not quoted. The code will fail.', suggested_fix: 'Quote the string literal.', improved_prompt_instruction: 'Generate valid Python syntax and avoid the previous mistake.', requires_human_review: false }, null, 2)} /><div className="card-actions"><PrimaryButton tone="ghost">Replay</PrimaryButton><PrimaryButton tone="ghost">Regenerate</PrimaryButton><PrimaryButton tone="success">Approve manually</PrimaryButton><PrimaryButton tone="ghost">Export audit report</PrimaryButton></div></Panel></section><AuditTimeline /></>;
+  return <><PageHeader kicker="Request detail" title="See exactly how this response was handled"><span>This is the proof trail: prompt, candidate, verdict, repair, and the final answer released to the app.</span></PageHeader><section className="detail-grid"><Panel title="Prompt and response" description={`Request ${req.id}`}><CodeBlock title="Original request" code={'Write a Python script that prints Hello World'} /><PromptDiff rejected={'print(Hello World)'} approved={'print("Hello World")'} /><CodeBlock title="Final approved response" code={String(req.final_response ?? 'print("Hello World")')} /></Panel><Panel title="Gemma verdict" description="Structured JSON from the local judge."><VerdictBadge status={req.status} /><CodeBlock title="Verdict JSON" code={JSON.stringify({ verdict: 'DISAPPROVED', confidence: 0.92, safety_score: 96, usefulness_score: 74, prompt_alignment_score: 88, correctness_risk: 'medium', rejection_reason: 'Python string is not quoted. The code will fail.', suggested_fix: 'Quote the string literal.', improved_prompt_instruction: 'Generate valid Python syntax and avoid the previous mistake.', requires_human_review: false }, null, 2)} /><div className="card-actions"><PrimaryButton tone="ghost">Replay request</PrimaryButton><PrimaryButton tone="ghost">Regenerate</PrimaryButton><PrimaryButton tone="success">Approve manually</PrimaryButton><PrimaryButton tone="ghost">Export audit report</PrimaryButton></div></Panel></section><AuditTimeline /></>;
 }
 
 function PromptRepairPage() {
-  return <><PageHeader kicker="Prompt repair" title="The repair loop is visible, editable, and safe"><span>The Witness keeps the user intent intact, adds hidden corrective instructions, and becomes stricter after repeated failures.</span></PageHeader><section className="repair-layout"><Panel title="Current repair"><CodeBlock title="Original user request" code="Write a Python script that prints Hello World" /><CodeBlock title="Rejected response" code="print(Hello World)" /><div className="reason-card"><AlertTriangle size={20} /><div><strong>Python string is not quoted. The code will fail.</strong><p>Required fix: quote the string literal and keep the answer direct.</p></div></div><textarea aria-label="Repaired prompt preview" defaultValue={`Original user request:\nWrite a Python script that prints Hello World\n\nThe previous answer was rejected by The Witness.\nRejection reason: Python string is not quoted.\nRequired fix: Quote the string literal.\n\nNow generate a corrected answer.`} /><PrimaryButton><RefreshCcw size={16} /> Retry with repaired prompt</PrimaryButton></Panel><Panel title="Retry timeline"><div className="attempt-line fail"><XCircle size={18} /><span>Attempt 1</span><strong>DISAPPROVED</strong></div><div className="attempt-line warn"><Sparkles size={18} /><span>Repair generated</span><strong>hidden corrective instruction</strong></div><div className="attempt-line pass"><CheckCircle2 size={18} /><span>Attempt 2</span><strong>APPROVED</strong></div></Panel></section></>;
+  return <><PageHeader kicker="Prompt repair" title="Prompt Repair"><span>When a response is rejected, The Witness turns the reason into a better retry prompt while preserving the user’s original request.</span></PageHeader><section className="repair-layout"><Panel title="Current repair"><CodeBlock title="Original user request" code="Write a Python script that prints Hello World" /><CodeBlock title="Rejected response" code="print(Hello World)" /><div className="reason-card"><AlertTriangle size={20} /><div><strong>Python string is not quoted. The code will fail.</strong><p>Required fix: quote the string literal and keep the answer direct.</p></div></div><textarea aria-label="Repaired prompt preview" defaultValue={`Original user request:\nWrite a Python script that prints Hello World\n\nThe previous answer was rejected by The Witness.\nRejection reason: Python string is not quoted.\nRequired fix: Quote the string literal.\n\nNow generate a corrected answer.`} /><PrimaryButton><RefreshCcw size={16} /> Retry with repaired prompt</PrimaryButton></Panel><Panel title="Retry timeline"><div className="attempt-line fail"><XCircle size={18} /><span>Attempt 1</span><strong>Blocked before reaching the app</strong></div><div className="attempt-line warn"><Sparkles size={18} /><span>Repair generated</span><strong>reason converted into retry instruction</strong></div><div className="attempt-line pass"><CheckCircle2 size={18} /><span>Attempt 2</span><strong>Approved and returned</strong></div></Panel></section></>;
 }
 
 function HumanReviewPage() {
   const cards = [{ title: 'Finance Helper response', reason: 'Low confidence with financial guidance', confidence: '61%', profile: 'finance' }, { title: 'Medical explainer', reason: 'High-risk health information needs a human decision', confidence: '68%', profile: 'medical' }];
-  return <><PageHeader kicker="Needs a human decision" title="Pause risky responses before they reach users"><span>Human review is used when The Witness is not confident enough to safely release a response.</span></PageHeader><section className="review-grid">{cards.map((c) => <article className="review-card" key={c.title}><StatusPill tone="warn" label="Needs a human decision" /><h3>{c.title}</h3><p>{c.reason}</p><dl><div><dt>Profile</dt><dd>{c.profile}</dd></div><div><dt>Confidence</dt><dd>{c.confidence}</dd></div></dl><div className="card-actions"><PrimaryButton tone="success">Approve</PrimaryButton><PrimaryButton tone="danger">Reject</PrimaryButton><PrimaryButton tone="ghost">Edit response</PrimaryButton><PrimaryButton tone="ghost">Export report</PrimaryButton></div></article>)}</section></>;
+  return <><PageHeader kicker="Needs a human decision" title="High-risk or uncertain responses pause here"><span>The Witness pauses responses here when the model is not confident enough to safely release them.</span></PageHeader><section className="review-grid">{cards.map((c) => <article className="review-card" key={c.title}><StatusPill tone="warn" label="Needs a human decision" /><h3>{c.title}</h3><p>{c.reason}</p><dl><div><dt>Profile</dt><dd>{c.profile}</dd></div><div><dt>Confidence</dt><dd>{c.confidence}</dd></div></dl><div className="card-actions"><PrimaryButton tone="success">Approve</PrimaryButton><PrimaryButton tone="danger">Reject</PrimaryButton><PrimaryButton tone="ghost">Edit response</PrimaryButton><PrimaryButton tone="ghost">Export report</PrimaryButton></div></article>)}</section></>;
 }
 
-function ModelsPage({ models, links }: AppData) {
+function ModelsPage({ models, links, config, reload }: AppData & { config: Config }) {
   const all = models.length ? models : demoModels;
-  return <><PageHeader kicker="Model manager" title="Choose how The Witness thinks" actions={<PrimaryButton onClick={() => window.open(links.huggingface, '_blank')}>Open Hugging Face</PrimaryButton>}><span>Use a fast local judge by default, a stronger model for high-risk profiles, or a fine-tuned Witness judge for schema-first verdicts.</span></PageHeader><section className="model-grid">{all.map((m) => <ModelCard key={m.id} model={m} />)}</section><section className="resource-strip"><a href={links.huggingface} target="_blank" rel="noreferrer">Fine-tuned model on Hugging Face</a><a href={links.colab} target="_blank" rel="noreferrer">Colab fine-tuning notebook</a></section></>;
+  return <><PageHeader kicker="Model manager" title="Choose how The Witness thinks" actions={<><PrimaryButton onClick={() => window.open(links.huggingface, '_blank')}>Open Hugging Face</PrimaryButton><PrimaryButton tone="ghost" onClick={() => window.location.hash = '#Settings'}>Add custom Ollama model</PrimaryButton></>}><span>Gemma 4 is the primary recommended judge. Custom Ollama models are optional advanced choices you can register from Settings or the CLI.</span></PageHeader><section className="model-grid">{all.map((m) => <ModelCard key={m.id} model={m} config={config} reload={reload} />)}</section><section className="resource-strip"><a href={links.huggingface} target="_blank" rel="noreferrer">Fine-tuned model on Hugging Face</a><a href={links.colab} target="_blank" rel="noreferrer">Colab fine-tuning notebook</a></section></>;
 }
 
-function ModelCard({ model }: { model: ModelEntry }) {
+function ModelCard({ model, config, reload }: { model: ModelEntry; config: Config; reload: () => void }) {
   const primary = model.model.includes('e2b');
   const strong = model.model.includes('e4b');
-  return <article className="model-card"><div className="model-top"><div className="model-chip"><Cpu size={18} /> {model.backend}</div><StatusPill tone={model.installed ? 'good' : primary ? 'info' : strong ? 'warn' : 'neutral'} label={model.installed ? 'installed' : model.status ?? 'available'} /></div><h3>{model.display_name}</h3><p>{model.source === 'huggingface' ? 'Fine-tuned JSON verdict model for The Witness rejection/approval schema.' : model.backend === 'litert' ? 'Edge prefilter mode for lightweight checks. Experimental until runtime-tested on target devices.' : model.backend === 'llama.cpp' ? 'Resource-constrained local inference with a server URL or GGUF path.' : 'Ollama-backed local judge for offline approval classification.'}</p><code>{model.model}</code><div className="card-actions"><PrimaryButton tone="ghost">Pull / Download</PrimaryButton><PrimaryButton tone="ghost">Test model</PrimaryButton><PrimaryButton>Set default</PrimaryButton></div></article>;
+  const setDefault = async () => {
+    await api.saveConfig({ ...config, gemma: { ...config.gemma, backend: model.backend === 'ollama-custom' ? 'ollama' : model.backend, model: model.model } });
+    reload();
+    alert(`Default judge set to ${model.model}. Run doctor/model test before live use.`);
+  };
+  const test = async () => {
+    const res = await api.modelTest({ backend: model.backend === 'ollama-custom' ? 'ollama' : model.backend, model: model.model });
+    alert(JSON.stringify(res, null, 2));
+  };
+  const download = async () => {
+    const res = await api.modelDownload({ backend: model.backend, model: model.model, source: model.source });
+    alert((res as { message?: string }).message ?? JSON.stringify(res));
+  };
+  return <article className="model-card"><div className="model-top"><div className="model-chip"><Cpu size={18} /> {model.backend}</div><StatusPill tone={model.installed ? 'good' : primary ? 'info' : strong ? 'warn' : 'neutral'} label={model.installed ? 'installed' : model.status ?? 'available'} /></div><h3>{model.display_name}</h3><p>{modelDescription(model)}</p><code>{model.model}</code><div className="card-actions"><PrimaryButton tone="ghost" onClick={() => download().catch((e) => alert(String(e)))}>Pull / Download</PrimaryButton><PrimaryButton tone="ghost" onClick={() => test().catch((e) => alert(String(e)))}>Test model</PrimaryButton><PrimaryButton onClick={() => setDefault().catch((e) => alert(String(e)))}>Set default</PrimaryButton></div></article>;
+}
+
+function modelDescription(model: ModelEntry) {
+  if (model.source === 'huggingface') return 'Fine-tuned JSON verdict model for The Witness rejection/approval schema.';
+  if (model.backend === 'litert') return 'Edge prefilter mode for lightweight checks. Requires runtime validation on the target device.';
+  if (model.backend === 'llama.cpp') return 'Resource-constrained local inference with a server URL or GGUF path.';
+  if (model.backend === 'unsloth') return 'Local fine-tuned judge path for schema-first rejection and approval checks.';
+  if (model.backend === 'manual') return 'OpenAI-compatible local judge endpoint with configurable auth and model name.';
+  if (model.backend === 'ollama') return 'Ollama-backed local judge for offline approval classification.';
+  return 'Configurable judge backend for local verdict checks.';
 }
 
 function LogsPage({ logs, privacy }: AppData) {
   const events = ['received', 'judged', 'rejected', 'prompt repaired', 'retried', 'approved', 'exported'];
-  return <><PageHeader kicker="Logs and audit" title="Every decision leaves a trail" actions={<><PrimaryButton tone="ghost">Export JSONL</PrimaryButton><PrimaryButton tone="ghost">Export Markdown</PrimaryButton></>}><span>Searchable timelines for approvals, blocks, retries, judge errors, and manual overrides. Privacy mode: {privacy ? 'on' : 'off'}.</span></PageHeader><section className="logs-layout"><Panel title="Audit timeline">{events.map((e, i) => <div className="log-event" key={e}><StatusPill tone={i < 2 ? 'info' : i < 4 ? 'warn' : 'good'} label={e} /><span>req_demo_9f1a</span><small>{i + 1}m ago</small></div>)}</Panel><Panel title="Raw log preview"><CodeBlock title="JSONL" code={logs || '{"event":"demo","message":"No live logs yet. The Witness will write JSONL audit events here."}'} /></Panel></section></>;
+  return <><PageHeader kicker="Audit logs" title="Every verdict, repair, retry, and manual decision is recorded" actions={<><PrimaryButton tone="ghost">Export JSONL</PrimaryButton><PrimaryButton tone="ghost">Export Markdown</PrimaryButton></>}><span>Searchable timelines for approvals, blocks, retries, judge errors, and manual overrides. Privacy mode: {privacy ? 'on' : 'off'}.</span></PageHeader><section className="logs-layout"><Panel title="Audit timeline">{events.map((e, i) => <div className="log-event" key={e}><StatusPill tone={i < 2 ? 'info' : i < 4 ? 'warn' : 'good'} label={e} /><span>req_demo_9f1a</span><small>{i + 1}m ago</small></div>)}</Panel><Panel title="Raw log preview"><CodeBlock title="JSONL" code={logs || '{"event":"demo","message":"No audit events yet. Logs will appear once traffic flows through The Witness."}'} /></Panel></section></>;
 }
 
 function DoctorPage() {
@@ -556,7 +579,7 @@ function DoctorPage() {
     ['Models', [['gemma4:e2b installed', 'WARN', 'Run: ollama pull gemma4:e2b'], ['gemma4:e4b installed', 'WARN', 'Run: ollama pull gemma4:e4b']]],
     ['Optional integrations', [['Blackbox env var', 'WARN', 'Run: export BLACKBOX_API_KEY="YOUR_KEY_HERE"'], ['LiteRT configured', 'INFO', 'Set a LiteRT model path when needed.']]],
   ] as const;
-  return <><PageHeader kicker="Doctor" title="Something needs attention? The Witness explains the fix"><span>Doctor checks are grouped by what the user can do next, with exact commands for common failures.</span></PageHeader><section className="doctor-grid">{groups.map(([group, checks]) => <Panel key={group} title={group}>{checks.map(([name, state, fix]) => <DoctorCheckCard key={name} name={name} state={state} fix={fix} />)}</Panel>)}</section></>;
+  return <><PageHeader kicker="System check" title="Find what is ready, what needs setup, and the exact command to fix it"><span>Doctor checks are grouped by what you can do next, with copyable commands for common setup issues.</span></PageHeader><section className="doctor-grid">{groups.map(([group, checks]) => <Panel key={group} title={group}>{checks.map(([name, state, fix]) => <DoctorCheckCard key={name} name={name} state={state} fix={fix} />)}</Panel>)}</section></>;
 }
 
 function DoctorCheckCard({ name, state, fix }: { name: string; state: string; fix: string }) {
@@ -564,14 +587,26 @@ function DoctorCheckCard({ name, state, fix }: { name: string; state: string; fi
   return <article className="doctor-check"><StatusPill tone={tone} label={state} /><div><strong>{name}</strong><p>{fix}</p></div><button className="copy-mini" onClick={() => copyText(fix.replace('Run: ', ''))}>Copy fix</button></article>;
 }
 
-function SettingsPage({ config, health }: AppData & { config: Config }) {
+function SettingsPage({ config, health, reload }: AppData & { config: Config }) {
   const tail = health?.dashboard_access?.tailscale;
-  return <><PageHeader kicker="Settings" title="Clear controls, safe defaults"><span>General, proxy, dashboard, models, privacy, service, and theme settings are grouped so they feel manageable.</span></PageHeader><section className="settings-grid">{[
-    ['General', [['Default backend', config.gemma.backend], ['Default model', config.gemma.model], ['Fallback', config.defaults.fallback_mode]]],
-    ['Proxy', [['Proxy host', '127.0.0.1'], ['Proxy port', '8787'], ['LAN exposure', 'off by default']]],
-    ['Dashboard', [['Control API', health?.dashboard_access?.bind_url ?? '127.0.0.1:8790'], ['Open browser', 'manual: use dashboard --open'], ['Service', 'dashboard --no-open --host 0.0.0.0'], ['Tailscale', tail?.available ? tail.url ?? 'available' : tail?.hint ?? 'not detected']]],
-    ['Privacy', [['Store prompts', config.defaults.privacy_mode ? 'metadata only' : 'full audit'], ['Secret redaction', 'always on'], ['Log format', config.defaults.log_format]]],
-  ].map(([title, rows]) => <Panel key={title as string} title={title as string}>{(rows as string[][]).map(([k, v]) => <label className="setting-row" key={k}><span>{k}</span><input defaultValue={v} /></label>)}<PrimaryButton>Save {title as string}</PrimaryButton></Panel>)}</section></>;
+  const [draft, setDraft] = useState(config);
+  const [customModel, setCustomModel] = useState('');
+  const [customName, setCustomName] = useState('');
+  useEffect(() => setDraft(config), [config]);
+  const save = async () => { await api.saveConfig(draft); reload(); alert('Settings saved. Run doctor before sending live traffic if you changed the judge.'); };
+  const addCustomOllama = async (setDefault: boolean) => {
+    if (!customModel.trim()) { alert('Enter an Ollama model name first.'); return; }
+    const res = await api.addCustomOllamaModel({ model: customModel.trim(), display_name: customName.trim() || undefined, set_default: setDefault });
+    reload();
+    alert(res.message);
+  };
+  return <><PageHeader kicker="Settings" title="Control models, privacy, ports, services, and default behavior"><span>Gemma 4 remains the primary judge. Custom Ollama models are available here as an advanced addition and are documented deeper in setup docs.</span></PageHeader><section className="settings-grid">
+    <Panel title="General"><label className="setting-row"><span>Default backend</span><input value={draft.gemma.backend} onChange={(e) => setDraft({ ...draft, gemma: { ...draft.gemma, backend: e.target.value } })} /></label><label className="setting-row"><span>Default model</span><input value={draft.gemma.model} onChange={(e) => setDraft({ ...draft, gemma: { ...draft.gemma, model: e.target.value } })} /></label><label className="setting-row"><span>Judge URL</span><input value={draft.gemma.url} onChange={(e) => setDraft({ ...draft, gemma: { ...draft.gemma, url: e.target.value } })} /></label><PrimaryButton onClick={() => save().catch((e) => alert(String(e)))}>Save General</PrimaryButton></Panel>
+    <Panel title="Custom Ollama model" description="Optional advanced addition. Use Gemma 4 defaults unless you intentionally want another local Ollama tag."><label className="setting-row"><span>Ollama model tag</span><input value={customModel} onChange={(e) => setCustomModel(e.target.value)} placeholder="my-model:latest" /></label><label className="setting-row"><span>Display name</span><input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Local experimental judge" /></label><div className="card-actions"><PrimaryButton tone="ghost" onClick={() => addCustomOllama(false).catch((e) => alert(String(e)))}>Register model</PrimaryButton><PrimaryButton onClick={() => addCustomOllama(true).catch((e) => alert(String(e)))}>Register and set default</PrimaryButton></div><CodeBlock title="CLI equivalent" code="the-witness model add-ollama --model my-model:latest --display-name 'Local experimental judge'" /></Panel>
+    <Panel title="Proxy"><label className="setting-row"><span>Proxy host</span><input defaultValue="127.0.0.1" readOnly /></label><label className="setting-row"><span>Proxy port</span><input defaultValue="8787" readOnly /></label><label className="setting-row"><span>LAN exposure</span><input defaultValue="off by default" readOnly /></label><PrimaryButton tone="ghost" onClick={() => api.startProxy().then((r) => alert(JSON.stringify(r, null, 2))).catch((e) => alert(String(e)))}>Proxy status</PrimaryButton></Panel>
+    <Panel title="Dashboard"><label className="setting-row"><span>Control API</span><input defaultValue={health?.dashboard_access?.bind_url ?? '127.0.0.1:8790'} readOnly /></label><label className="setting-row"><span>Open browser</span><input defaultValue="manual: use dashboard --open" readOnly /></label><label className="setting-row"><span>Service</span><input defaultValue="dashboard --no-open --host 0.0.0.0" readOnly /></label><label className="setting-row"><span>Tailscale</span><input defaultValue={tail?.available ? tail.url ?? 'available' : tail?.hint ?? 'not detected'} readOnly /></label></Panel>
+    <Panel title="Privacy"><label className="setting-row"><span>Store prompts</span><select value={draft.defaults.privacy_mode ? 'metadata' : 'full'} onChange={(e) => setDraft({ ...draft, defaults: { ...draft.defaults, privacy_mode: e.target.value === 'metadata' } })}><option value="full">full audit</option><option value="metadata">metadata only</option></select></label><label className="setting-row"><span>Secret redaction</span><input defaultValue="always on" readOnly /></label><label className="setting-row"><span>Log format</span><input value={draft.defaults.log_format} onChange={(e) => setDraft({ ...draft, defaults: { ...draft.defaults, log_format: e.target.value } })} /></label><PrimaryButton onClick={() => save().catch((e) => alert(String(e)))}>Save Privacy</PrimaryButton></Panel>
+  </section></>;
 }
 
 function VerdictBadge({ status }: { status: string }) {
@@ -598,9 +633,19 @@ function CopyButton({ value }: { value: string }) {
 }
 
 function statusOf(r: RequestEvent) { return String(r.status ?? '').toLowerCase(); }
+function topbarTitle(page: PageName) {
+  if (page === 'Dashboard') return 'Mission Control';
+  if (page === 'Endpoints') return 'Watched Endpoints';
+  if (page === 'Requests') return 'Live Requests';
+  if (page === 'Human Review') return 'Needs a Human Decision';
+  if (page === 'Models') return 'Choose How The Witness Thinks';
+  if (page === 'Logs') return 'Audit Logs';
+  if (page === 'Doctor') return 'System Check';
+  return page;
+}
 function friendlyStatus(status: string) {
   const s = String(status).toLowerCase();
-  if (s.includes('approved')) return 'Approved';
+  if (s.includes('approved')) return 'Approved and returned';
   if (s.includes('disapproved') || s.includes('failed')) return 'Blocked before reaching the app';
   if (s.includes('human')) return 'Needs a human decision';
   if (s.includes('retry')) return 'Repairing and retrying';

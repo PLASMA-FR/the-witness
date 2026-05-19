@@ -1,20 +1,38 @@
-# Hackathon track mapping
+# Hackathon Track Fit
 
-## Ollama Track
-The Witness uses Gemma 4 locally through Ollama as the default local judge backend. The setup wizard checks the `ollama` command, uses `ollama pull <model>`, calls `/api/chat`, validates JSON verdicts, and runs sanity tests.
+Who this is for: reviewers who want to understand where The Witness fits.
 
-## llama.cpp Track
-The Witness supports Gemma 4 through llama.cpp for offline and resource-constrained hardware. `scripts/run_llamacpp.sh` starts a localhost OpenAI-compatible server; the judge calls `/v1/chat/completions` and doctor checks runtime/server readiness.
+What you will do: see the primary impact track, the four Gemma technology paths, and the boundaries of what is claimed.
 
-## LiteRT Track
-The Witness includes LiteRT as an edge verifier/prefilter. It validates the LiteRT runtime/model path and provides a fast classification adapter that can approve/disapprove/escalate to the full judge or human review. The MVP adapter is experimental and clearly routed through the backend interface.
+## Primary impact track: Safety & Trust
 
-## Unsloth Track
-The Witness includes real fine-tuning notebooks and scripts for Gemma 4 E2B Witness judge LoRA adapter, plus an experimental E4B template. The TUI Model Manager lists fine-tuned models, the notebooks run on Google Colab T4 GPU with Unsloth 4-bit QLoRA, optional Kaggle scripts upload/download artifacts, and model tests verify JSON schema behavior.
+The Witness is submitted primarily for Safety & Trust because it makes AI outputs more transparent, explainable, auditable, and controllable before they reach users or agents.
 
-## Impact Tracks
-- Safety & Trust: every response is judged before reaching users.
-- Digital Equity & Inclusivity: local/offline backends and Arabic-English profile.
-- Future of Education: education profile and tutor endpoint templates.
-- Health & Sciences: high-risk human review safeguards.
-- Global Resilience: disaster-response profile and audit trail.
+It does this by watching AI endpoints, judging candidate responses with Gemma 4, blocking unsafe or incorrect answers, repairing prompts, retrying, pausing risky cases for human review, and saving an audit trail.
+
+## Gemma technology paths
+
+| Technology path | How The Witness uses it | Setup note |
+|---|---|---|
+| Ollama | Default local Gemma judge path. | Pull `gemma4:e2b`; optionally pull `gemma4:e4b` for stricter/high-risk profiles. |
+| llama.cpp | Local inference path for resource-constrained machines. | Configure a llama.cpp server URL or compatible model path, then run model tests. |
+| LiteRT | Edge prefilter path for fast approval classification before escalating to the full judge. | Requires a LiteRT-compatible model/runtime in the target environment. |
+| Unsloth | Fine-tuned Witness judge workflow. | Public Colab notebook and Hugging Face adapter are provided. |
+
+Fine-tuned model:
+
+```text
+https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge
+```
+
+Fine-tuning notebook:
+
+```text
+https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing
+```
+
+## What is not claimed
+
+Cactus is not claimed in this submission. The project focuses on Ollama, llama.cpp, LiteRT, and Unsloth.
+
+The Witness is designed as a risk-reduction and verification layer. It does not guarantee correctness, and high-risk domains still require qualified human judgment.

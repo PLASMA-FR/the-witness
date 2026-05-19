@@ -146,6 +146,10 @@ pub fn router(state: ControlState) -> Router {
         .route("/api/config", get(api_config).put(api_put_config))
         .route("/api/settings", get(api_config).put(api_put_config))
         .route("/api/models", get(api_models))
+        .route(
+            "/api/models/custom-ollama",
+            post(api_add_custom_ollama_model),
+        )
         .route("/api/models/download", post(api_model_download))
         .route("/api/models/test", post(api_model_test))
         .route("/api/endpoints", get(api_endpoints).post(api_add_endpoint))
@@ -198,6 +202,15 @@ fn redacted_config(mut cfg: WitnessConfig) -> WitnessConfig {
         cfg.gemma.auth_header = Some("[REDACTED]".into());
     }
     cfg
+}
+
+fn scrub_config_secret_markers(cfg: &mut WitnessConfig) {
+    if cfg.gemma.auth_header.as_deref() == Some("[REDACTED]") {
+        cfg.gemma.auth_header = None;
+    }
+    for ep in &mut cfg.endpoints {
+        scrub_incoming_secret_markers(ep);
+    }
 }
 
 async fn api_health(State(state): State<ControlState>) -> Json<Value> {
@@ -254,9 +267,7 @@ async fn api_put_config(
     State(state): State<ControlState>,
     Json(mut cfg): Json<WitnessConfig>,
 ) -> Result<Json<WitnessConfig>, ApiError> {
-    for ep in &mut cfg.endpoints {
-        scrub_incoming_secret_markers(ep);
-    }
+    scrub_config_secret_markers(&mut cfg);
     cfg.save(&state.config_path)?;
     *state.config.write().await = cfg.clone();
     Ok(Json(redacted_config(cfg)))
@@ -270,6 +281,47 @@ async fn api_models(State(state): State<ControlState>) -> Result<Json<Value>, Ap
             "huggingface": "https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge",
             "colab": "https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing"
         }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct CustomOllamaModelRequest {
+    model: String,
+    #[serde(default)]
+    display_name: Option<String>,
+    #[serde(default)]
+    set_default: bool,
+}
+
+async fn api_add_custom_ollama_model(
+    State(state): State<ControlState>,
+    Json(body): Json<CustomOllamaModelRequest>,
+) -> Result<Json<Value>, ApiError> {
+    if body.model.trim().is_empty() {
+        return Err(ApiError {
+            status: StatusCode::BAD_REQUEST,
+            message: "Custom Ollama model name cannot be empty.".into(),
+        });
+    }
+    let registry_path = crate::models::registry::registry_path(&state.root);
+    let mut registry = ModelRegistry::load_or_default(&state.root)?;
+    let entry =
+        registry.add_or_update_custom_ollama_model(&body.model, body.display_name.as_deref());
+    registry.save(&registry_path)?;
+    if body.set_default {
+        let mut cfg = state.config.write().await;
+        cfg.gemma.backend = "ollama".into();
+        cfg.gemma.model = entry.model.clone();
+        if cfg.gemma.url.trim().is_empty() {
+            cfg.gemma.url = "http://localhost:11434".into();
+        }
+        cfg.save(&state.config_path)?;
+    }
+    Ok(Json(json!({
+        "ok": true,
+        "model": entry,
+        "models": registry.models,
+        "message": "Custom Ollama model saved. Gemma 4 remains the primary recommended judge; custom models are optional advanced choices."
     })))
 }
 

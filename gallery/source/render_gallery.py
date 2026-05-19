@@ -227,7 +227,7 @@ def model_manager():
     for i,row in enumerate(rows):
         y=380+i*65; d.line((130,y-14,1190,y-14),fill=rgba(COL["blue"],70),width=1)
         for x,val in zip(xs,row): d.text((x,y),val,font=F["small"],fill=rgba(COL["muted"] if x!=1050 else COL["green"]))
-    tracks=[("Ollama","local judge",COL["teal"]),("llama.cpp","low-resource",COL["blue"]),("LiteRT","edge prefilter",COL["amber"]),("Unsloth","fine-tuned",COL["purple"]),("Cactus","architecture-ready",COL["green"])]
+    tracks=[("Ollama","local judge",COL["teal"]),("llama.cpp","low-resource",COL["blue"]),("LiteRT","edge prefilter",COL["amber"]),("Unsloth","fine-tuned",COL["purple"]),("Safety & Trust","primary track",COL["green"])]
     for i,(a,b,c) in enumerate(tracks):
         x=1310; y=245+i*118; panel(d,(x,y,1780,y+82),None,c,(7,16,24,230),radius=18); d.text((x+24,y+18),a,font=F["h3"],fill=rgba(COL["white"])); d.text((x+210,y+25),b,font=F["small"],fill=rgba(COL["muted"]))
     return im
@@ -317,7 +317,7 @@ def badge_wall():
     d.text((190,505),"Impact",font=F["h2"],fill=rgba(COL["white"]));
     for i,txt in enumerate(["Safety & Trust","Digital Equity & Inclusivity","Future of Education","Health & Sciences","Global Resilience"]): badge(d,(190+(i%3)*430,585+(i//3)*80),txt,[COL["teal"],COL["green"],COL["blue"],COL["amber"],COL["purple"]][i])
     d.text((1080,300),"Technology",font=F["h2"],fill=rgba(COL["white"]));
-    for i,txt in enumerate(["Ollama","llama.cpp","LiteRT","Unsloth","Cactus-ready architecture"]): badge(d,(1080,380+i*72),txt,[COL["teal"],COL["blue"],COL["amber"],COL["purple"],COL["green"]][i])
+    for i,txt in enumerate(["Ollama","llama.cpp","LiteRT","Unsloth","Safety & Trust primary"]): badge(d,(1080,380+i*72),txt,[COL["teal"],COL["blue"],COL["amber"],COL["purple"],COL["green"]][i])
     d.text((190,800),"Primary selected track: Safety & Trust",font=F["h3"],fill=rgba(COL["green"]))
     return im
 
