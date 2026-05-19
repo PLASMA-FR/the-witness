@@ -250,7 +250,7 @@ impl WitnessConfig {
             name: "Blackbox Grok Code".into(),
             enabled: true,
             upstream_url: "https://api.blackbox.ai/v1".into(),
-            local_proxy_url: "http://localhost:8787/v1".into(),
+            local_proxy_url: "http://localhost:8787/Blackbox%20Grok%20Code/v1".into(),
             model: "blackboxai/x-ai/grok-code-fast-1:free".into(),
             profile: "coding".into(),
             retry_limit: 4,

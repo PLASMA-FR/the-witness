@@ -133,11 +133,7 @@ async fn forward(
     headers: &HeaderMap,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value> {
-    let url = format!(
-        "{}/{}",
-        endpoint.upstream_url.trim_end_matches('/'),
-        path.trim_start_matches('/')
-    );
+    let url = upstream_url_for(&endpoint.upstream_url, path);
     let mut req = client.post(url).json(body);
     if let Some(auth) = endpoint.resolved_auth_header()? {
         req = req.header("Authorization", auth);
@@ -146,6 +142,23 @@ async fn forward(
     }
     Ok(req.send().await?.error_for_status()?.json().await?)
 }
+fn upstream_url_for(upstream_url: &str, path: &str) -> String {
+    let upstream = upstream_url.trim_end_matches('/');
+    let mut downstream_path = path.trim_start_matches('/');
+    if upstream.ends_with("/v1") && downstream_path == "v1" {
+        downstream_path = "";
+    } else if upstream.ends_with("/v1") {
+        downstream_path = downstream_path
+            .strip_prefix("v1/")
+            .unwrap_or(downstream_path);
+    }
+    if downstream_path.is_empty() {
+        upstream.to_string()
+    } else {
+        format!("{upstream}/{downstream_path}")
+    }
+}
+
 fn fallback(
     endpoint: &EndpointConfig,
     reason: &str,
@@ -162,4 +175,33 @@ fn fallback(
             serde_json::json!({"choices":[{"message":{"role":"assistant","content":msg}}],"witness":{"blocked":true,"reason":reason}}),
         ),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::upstream_url_for;
+
+    #[test]
+    fn upstream_url_does_not_duplicate_openai_v1_prefix() {
+        assert_eq!(
+            upstream_url_for("https://api.blackbox.ai/v1", "v1/chat/completions"),
+            "https://api.blackbox.ai/v1/chat/completions"
+        );
+        assert_eq!(
+            upstream_url_for("https://api.openai.com/v1/", "/v1/models"),
+            "https://api.openai.com/v1/models"
+        );
+    }
+
+    #[test]
+    fn upstream_url_preserves_non_v1_paths() {
+        assert_eq!(
+            upstream_url_for("http://localhost:8000", "v1/chat/completions"),
+            "http://localhost:8000/v1/chat/completions"
+        );
+        assert_eq!(
+            upstream_url_for("http://localhost:8000/api", "chat"),
+            "http://localhost:8000/api/chat"
+        );
+    }
 }
