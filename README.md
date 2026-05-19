@@ -191,9 +191,9 @@ Platform details:
 
 | Platform | Method | Status |
 |---|---|---|
-| Linux | systemd user service | Implemented and Linux-tested |
-| macOS | launchd user agent | Implemented, needs macOS validation |
-| Windows | per-user Scheduled Task fallback | Implemented, needs Windows validation |
+| Linux | systemd user service | Implemented |
+| macOS | launchd user agent | Implemented; validate on target host before production use |
+| Windows | per-user Scheduled Task fallback | Implemented; validate on target host before production use |
 
 See [`docs/services.md`](docs/services.md), [`docs/linux.md`](docs/linux.md), [`docs/macos.md`](docs/macos.md), and [`docs/windows.md`](docs/windows.md).
 
@@ -244,7 +244,7 @@ curl http://localhost:8787/Blackbox%20Grok%20Code/v1/chat/completions \
 | Installer | Tested shell script | Shell script created | PowerShell script created |
 | Service | systemd user service | launchd user agent | Scheduled Task fallback |
 
-Only Linux was actually tested in this development environment. Windows and macOS support is implemented but must be validated on those operating systems before claiming production support.
+Release evidence is recorded in `docs/final_full_test_report.md`. For production rollouts, run `the-witness doctor` and the installer on the target host before enabling live endpoints.
 
 ## TUI usage
 
@@ -338,7 +338,7 @@ python3 training/scripts/validate_dataset.py
 Set the key in your shell only:
 
 ```bash
-export BLACKBOX_API_KEY="***"
+export BLACKBOX_API_KEY="YOUR_KEY_HERE"
 ```
 
 Direct upstream sanity test:

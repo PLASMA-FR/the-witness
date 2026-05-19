@@ -142,7 +142,9 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
 pub fn router(state: ControlState) -> Router {
     Router::new()
         .route("/api/health", get(api_health))
+        .route("/api/system/status", get(api_system_status))
         .route("/api/config", get(api_config).put(api_put_config))
+        .route("/api/settings", get(api_config).put(api_put_config))
         .route("/api/models", get(api_models))
         .route("/api/models/download", post(api_model_download))
         .route("/api/models/test", post(api_model_test))
@@ -217,6 +219,35 @@ async fn api_health(State(state): State<ControlState>) -> Json<Value> {
 
 async fn api_config(State(state): State<ControlState>) -> Json<WitnessConfig> {
     Json(redacted_config(state.config.read().await.clone()))
+}
+
+async fn api_system_status(State(state): State<ControlState>) -> Json<Value> {
+    let cfg = state.config.read().await;
+    let enabled = cfg
+        .endpoints
+        .iter()
+        .filter(|endpoint| endpoint.enabled)
+        .count();
+    let access = dashboard_access(state.dashboard_addr, tailscale::detect_tailscale_ipv4());
+    Json(json!({
+        "ok": true,
+        "service": "the-witness",
+        "backend": cfg.gemma.backend,
+        "model": cfg.gemma.model,
+        "strong_model": "gemma4:e4b",
+        "fallback_mode": cfg.defaults.fallback_mode,
+        "setup_ready": cfg.setup_ready(),
+        "privacy_mode": cfg.defaults.privacy_mode,
+        "dashboard": access,
+        "proxy": {
+            "url": format!("http://{}/v1", state.proxy_addr),
+            "status": "configured"
+        },
+        "endpoints": {
+            "total": cfg.endpoints.len(),
+            "enabled": enabled
+        }
+    }))
 }
 
 async fn api_put_config(

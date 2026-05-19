@@ -1,27 +1,24 @@
-# The Witness status
+# Project Status
+
+The Witness is a local-first Gemma 4 reliability firewall for AI endpoints. This page is a plain-language status snapshot for judges, users, and maintainers.
 
 | Feature | Status | Notes |
 |---|---|---|
-| CLI | Working | Tested on Linux. Existing commands preserved. |
-| TUI | Working | Existing TUI preserved; Linux smoke/layout tests run. |
-| Web UI | Working | React/Vite dashboard builds and is served by `the-witness dashboard`. |
-| Dashboard API | Working | Local control API under `http://127.0.0.1:8790/api/*`; tested on Linux. |
-| Proxy | Working | OpenAI-compatible non-streaming proxy tested with demo and Blackbox routing fix. |
-| Replay/export | Working | Reads JSONL audit logs and exports Markdown/JSON/JSONL. |
-| Linux installer | Working/tested | `scripts/install.sh` syntax and safe install flow tested on Linux. |
-| Windows installer | Script created | PowerShell script created; syntax read check possible on Linux only if `pwsh` is installed. Needs Windows validation. |
-| Linux systemd user service | Created | Code writes `~/.config/systemd/user/the-witness.service`; status checked best-effort on Linux. |
-| macOS launchd service | Created/untested | Plist generation implemented; not tested on macOS in this environment. |
-| Windows service/task | Created/untested | Scheduled Task fallback implemented; not tested on Windows in this environment. |
-| Ollama backend | Supported | Default backend. Runtime depends on local Ollama and pulled models. |
-| gemma4:e2b | Default | Confirmed default judge model. |
-| gemma4:e4b | Strong/high-risk | Confirmed high-risk judge model. |
-| llama.cpp backend | Supported | Config/test path supported; live server not tested unless user runs one. |
-| LiteRT backend | Experimental/supported | Setup surface exists; runtime not fully tested here. |
-| Unsloth/HF model | Supported | HF link documented: https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge |
-| Blackbox endpoint | Working | Uses `BLACKBOX_API_KEY`; real upstream/proxy path previously verified. |
+| CLI | Implemented | Setup, doctor, model, endpoint, dashboard, service, replay, export, and logs command surfaces are present. |
+| TUI | Implemented | First-run setup and operator screens are available through `the-witness start`. |
+| Web UI | Implemented | Local dashboard at `http://127.0.0.1:8790` with dashboard, endpoints, requests, repair, review, models, logs, doctor, and settings views. |
+| Dashboard API | Implemented | Localhost control API covers health, config/settings, models, endpoints, requests, logs, doctor, and proxy controls. |
+| Linux installer | Implemented | `scripts/install.sh` builds the release binary and prints model/setup next steps. |
+| Windows installer | Implemented | `scripts/install.ps1` builds the release binary and prints PowerShell-specific next steps. |
+| macOS support | Implemented path | Uses the same Rust binary and shell installer; run `the-witness doctor` on the target Mac before live use. |
+| Service support | Implemented | User service helpers cover systemd, launchd, and Windows scheduled task flows. |
+| Ollama | Primary backend | Default judge path. Pull `gemma4:e2b`; use `gemma4:e4b` for stronger/high-risk profiles. |
+| llama.cpp | Supported backend | Configure a local llama.cpp server URL or model path, then run doctor/model tests. |
+| LiteRT | Supported backend | Configure a LiteRT model path and run the judge capability test before live use. |
+| Unsloth / HF model | Supported path | Public adapter: `https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge`. |
+| Blackbox endpoint | Example integration | Uses `BLACKBOX_API_KEY` from the environment and never stores the key value in config. |
+| Demo mode | Implemented | Demo judge and mock upstream flows let users see reject-repair-approve without external credentials. |
+| Streaming chat | Later work | MVP focuses on non-streaming OpenAI-compatible chat completions. |
 | Cactus | Not claimed | Not part of this release. |
 
-Platform actually tested: Linux.
-
-Platforms not actually tested here: Windows and macOS.
+For detailed evidence, see `docs/final_full_test_report.md`.

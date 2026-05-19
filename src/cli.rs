@@ -282,8 +282,15 @@ pub fn export_request_report(root: &Path, request_id: &str, format: &str) -> Res
 
 fn find_request_event(root: &Path, request_id: &str) -> Result<crate::types::RequestEvent> {
     let path = root.join("logs/witness.jsonl");
-    let text = std::fs::read_to_string(&path)
-        .with_context(|| format!("could not read audit log {}", path.display()))?;
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            anyhow::bail!("request id not found: {request_id}; audit log is empty or has not been created yet")
+        }
+        Err(err) => {
+            return Err(err).with_context(|| format!("could not read audit log {}", path.display()))
+        }
+    };
     let mut parse_errors = Vec::new();
     let mut found = None;
     for (idx, line) in text.lines().enumerate() {

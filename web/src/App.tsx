@@ -377,10 +377,16 @@ function DashboardPage({ health, config, requests, setPage }: AppData & { config
       {!config.endpoints.length && <EmptyState title="Demo mode is filling the dashboard" action="Add live endpoint" onAction={() => setPage('Endpoints')}>No live endpoints are saved yet. The cards above use clearly marked demo traffic so you can see the protection flow before routing a real AI app.</EmptyState>}
       <section className="dashboard-grid">
         <Panel title="Requests over time" description="Approval flow is shown as a live operating picture.">
-          <ResponsiveContainer width="100%" height={240}><AreaChart data={chart}><defs><linearGradient id="teal" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#3ef8d0" stopOpacity={0.45} /><stop offset="100%" stopColor="#3ef8d0" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="rgba(255,255,255,.06)" /><XAxis dataKey="name" stroke="#91a9a4" /><YAxis stroke="#91a9a4" /><Tooltip contentStyle={{ background: '#0c171b', border: '1px solid #24434a', borderRadius: 12 }} /><Area type="monotone" dataKey="requests" stroke="#3ef8d0" fill="url(#teal)" strokeWidth={3} /></AreaChart></ResponsiveContainer>
+          <div className="chart-frame" aria-label="Demo request volume chart">
+            <ResponsiveContainer width="100%" height={240}><AreaChart data={chart}><defs><linearGradient id="teal" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#3ef8d0" stopOpacity={0.45} /><stop offset="100%" stopColor="#3ef8d0" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="rgba(255,255,255,.06)" /><XAxis dataKey="name" stroke="#91a9a4" /><YAxis stroke="#91a9a4" /><Tooltip contentStyle={{ background: '#0c171b', border: '1px solid #24434a', borderRadius: 12 }} /><Area type="monotone" dataKey="requests" stroke="#3ef8d0" fill="url(#teal)" strokeWidth={3} /></AreaChart></ResponsiveContainer>
+            {!requests.length && <div className="chart-note">Demo traffic shown until your first live request arrives.</div>}
+          </div>
         </Panel>
         <Panel title="Verdict mix" description="Responses are released, blocked, or paused.">
-          <ResponsiveContainer width="100%" height={240}><PieChart><Pie data={[{ name: 'Approved', value: Math.max(approved, 8) }, { name: 'Blocked', value: Math.max(disapproved, 2) }, { name: 'Human', value: Math.max(review, 1) }]} innerRadius={58} outerRadius={86} paddingAngle={4} dataKey="value"><Cell fill="#62e58f" /><Cell fill="#ff647c" /><Cell fill="#f5c760" /></Pie><Tooltip contentStyle={{ background: '#0c171b', border: '1px solid #24434a', borderRadius: 12 }} /></PieChart></ResponsiveContainer>
+          <div className="chart-frame chart-frame-centered" aria-label="Verdict mix chart">
+            <ResponsiveContainer width="100%" height={240}><PieChart><Pie data={[{ name: 'Approved', value: Math.max(approved, 8) }, { name: 'Blocked', value: Math.max(disapproved, 2) }, { name: 'Human', value: Math.max(review, 1) }]} innerRadius={58} outerRadius={86} paddingAngle={4} dataKey="value"><Cell fill="#62e58f" /><Cell fill="#ff647c" /><Cell fill="#f5c760" /></Pie><Tooltip contentStyle={{ background: '#0c171b', border: '1px solid #24434a', borderRadius: 12 }} /></PieChart></ResponsiveContainer>
+            <div className="donut-center"><strong>{approved + disapproved + review || 11}</strong><span>{requests.length ? 'live decisions' : 'demo decisions'}</span></div>
+          </div>
           <div className="legend-row"><StatusPill tone="good" label="Approved" /><StatusPill tone="bad" label="Blocked" /><StatusPill tone="warn" label="Human" /></div>
         </Panel>
         <LiveActivity requests={requests} />
@@ -477,7 +483,7 @@ function EndpointsPage({ config, reload, setPage }: AppData & { config: Config }
       <PrimaryButton onClick={() => api.addBlackbox().then(reload).catch(() => alert('BLACKBOX_API_KEY is missing. Export it and try again.'))}>Create Blackbox endpoint</PrimaryButton>
     </article>
   </section>
-  <section className="endpoint-card-grid">{endpoints.map((endpoint) => <EndpointCard key={endpoint.name} endpoint={endpoint} reload={reload} onRequests={() => setPage('Requests')} />)}</section>
+  <section className="endpoint-card-grid">{endpoints.map((endpoint) => <EndpointCard key={endpoint.name} endpoint={endpoint} reload={reload} onRequests={() => setPage('Requests')} onEdit={() => setForm(endpoint)} />)}</section>
   </>;
 }
 
@@ -497,9 +503,9 @@ function EndpointForm({ form, setForm }: { form: Endpoint; setForm: (e: Endpoint
   </div>;
 }
 
-function EndpointCard({ endpoint, reload, onRequests }: { endpoint: Endpoint; reload: () => void; onRequests: () => void }) {
+function EndpointCard({ endpoint, reload, onRequests, onEdit }: { endpoint: Endpoint; reload: () => void; onRequests: () => void; onEdit: () => void }) {
   const auth = endpoint.auth?.type ?? (endpoint.auth_header ? 'static local' : 'none');
-  return <article className="endpoint-card"><div className="endpoint-top"><div><StatusPill tone={endpoint.enabled ? 'good' : 'neutral'} label={endpoint.enabled ? 'watching' : 'disabled'} /><h3>{endpoint.name}</h3></div><button className="icon-button" aria-label={`Copy proxy URL for ${endpoint.name}`} onClick={() => copyText(endpoint.local_proxy_url)}><Clipboard size={18} /></button></div><dl className="endpoint-meta"><div><dt>Upstream</dt><dd>{endpoint.upstream_url}</dd></div><div><dt>Local proxy</dt><dd>{endpoint.local_proxy_url}</dd></div><div><dt>Model</dt><dd>{endpoint.model}</dd></div><div><dt>Profile</dt><dd>{endpoint.profile}</dd></div><div><dt>Strictness</dt><dd>{endpoint.strictness}</dd></div><div><dt>Retry limit</dt><dd>{endpoint.retry_limit}</dd></div><div><dt>Auth</dt><dd>{auth}{endpoint.auth?.env ? ` · ${endpoint.auth.env}` : ''}</dd></div><div><dt>Approval rate</dt><dd>92%</dd></div></dl><div className="card-actions"><PrimaryButton tone="ghost" onClick={() => api.testEndpoint(endpoint.name).then(() => alert('Endpoint test finished.')).catch((e) => alert(String(e)))}><TestTube2 size={16} /> Test</PrimaryButton><PrimaryButton tone="ghost" onClick={() => copyText(curlFor(endpoint))}><Clipboard size={16} /> Copy curl</PrimaryButton><PrimaryButton tone="ghost" onClick={onRequests}>View requests</PrimaryButton><PrimaryButton tone="danger" onClick={() => api.deleteEndpoint(endpoint.name).then(reload)}>Delete</PrimaryButton></div></article>;
+  return <article className="endpoint-card"><div className="endpoint-top"><div><StatusPill tone={endpoint.enabled ? 'good' : 'neutral'} label={endpoint.enabled ? 'watching' : 'disabled'} /><h3>{endpoint.name}</h3></div><button className="icon-button" aria-label={`Copy proxy URL for ${endpoint.name}`} onClick={() => copyText(endpoint.local_proxy_url)}><Clipboard size={18} /></button></div><dl className="endpoint-meta"><div><dt>Upstream</dt><dd>{endpoint.upstream_url}</dd></div><div><dt>Local proxy</dt><dd>{endpoint.local_proxy_url}</dd></div><div><dt>Model</dt><dd>{endpoint.model}</dd></div><div><dt>Profile</dt><dd>{endpoint.profile}</dd></div><div><dt>Strictness</dt><dd>{endpoint.strictness}</dd></div><div><dt>Retry limit</dt><dd>{endpoint.retry_limit}</dd></div><div><dt>Auth</dt><dd>{auth}{endpoint.auth?.env ? ` · ${endpoint.auth.env}` : ''}</dd></div><div><dt>Approval rate</dt><dd>92%</dd></div></dl><div className="card-actions"><PrimaryButton tone="ghost" onClick={onEdit}>Edit</PrimaryButton><PrimaryButton tone="ghost" onClick={() => api.testEndpoint(endpoint.name).then(() => alert('Endpoint test finished.')).catch((e) => alert(String(e)))}><TestTube2 size={16} /> Test</PrimaryButton><PrimaryButton tone="ghost" onClick={() => copyText(curlFor(endpoint))}><Clipboard size={16} /> Copy curl</PrimaryButton><PrimaryButton tone="ghost" onClick={onRequests}>View requests</PrimaryButton><PrimaryButton tone="danger" onClick={() => api.deleteEndpoint(endpoint.name).then(reload)}>Delete</PrimaryButton></div></article>;
 }
 
 function RequestsPage({ requests, setSelected, setPage }: AppData) {
@@ -548,7 +554,7 @@ function DoctorPage() {
     ['Core system', [['OS detected', 'PASS', 'Linux runtime detected.'], ['Config valid', 'PASS', 'witness.toml can be read.']]],
     ['Proxy', [['Proxy port ready', 'PASS', 'localhost:8787 is available.'], ['Control API ready', 'PASS', 'localhost:8790 is serving.']]],
     ['Models', [['gemma4:e2b installed', 'WARN', 'Run: ollama pull gemma4:e2b'], ['gemma4:e4b installed', 'WARN', 'Run: ollama pull gemma4:e4b']]],
-    ['Optional integrations', [['Blackbox env var', 'WARN', 'Run: export BLACKBOX_API_KEY="YOUR_KEY"'], ['LiteRT configured', 'INFO', 'Set a LiteRT model path when needed.']]],
+    ['Optional integrations', [['Blackbox env var', 'WARN', 'Run: export BLACKBOX_API_KEY="YOUR_KEY_HERE"'], ['LiteRT configured', 'INFO', 'Set a LiteRT model path when needed.']]],
   ] as const;
   return <><PageHeader kicker="Doctor" title="Something needs attention? The Witness explains the fix"><span>Doctor checks are grouped by what the user can do next, with exact commands for common failures.</span></PageHeader><section className="doctor-grid">{groups.map(([group, checks]) => <Panel key={group} title={group}>{checks.map(([name, state, fix]) => <DoctorCheckCard key={name} name={name} state={state} fix={fix} />)}</Panel>)}</section></>;
 }
