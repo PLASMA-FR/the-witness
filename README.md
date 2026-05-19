@@ -264,6 +264,6 @@ Secrets are redacted in TUI/logs.
 7. DISAPPROVED: block, repair prompt, retry.
 8. NEEDS_HUMAN_REVIEW: pause/fallback and log.
 
-## Safety note
+## Safety & Trust
 
-The Witness improves reliability but does not guarantee perfect safety or correctness and does not replace qualified medical, legal, financial, or emergency professionals.
+The Witness improves reliability but does not guarantee perfect safety or correctness and does not replace qualified medical, legal, financial, or emergency professionals. It is a verification layer: it can block, repair, retry, log, and escalate AI responses, but final responsibility for high-risk decisions remains with people and domain experts.

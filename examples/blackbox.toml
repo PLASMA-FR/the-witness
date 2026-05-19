@@ -1,3 +1,44 @@
+[gemma]
+backend = "ollama"
+model = "gemma4:e2b"
+url = "http://localhost:11434"
+setup_completed = false
+
+[setup]
+last_doctor_check = "2026-05-19T04:02:29.380427077+00:00"
+judge_schema_test_passed = false
+proxy_test_passed = false
+model_test_passed = false
+demo_mode = false
+
+[defaults]
+retry_limit = 3
+strictness = "medium"
+fallback_mode = "human_review"
+log_format = "jsonl"
+privacy_mode = false
+
+[profiles.coding]
+preferred_backend = "ollama"
+preferred_model = "gemma4:e4b"
+fallback_model = "gemma4:e2b"
+strictness = "high"
+fallback_mode = "human_review"
+
+[profiles.education]
+preferred_backend = "ollama"
+preferred_model = "gemma4:e2b"
+fallback_model = "gemma4:e2b"
+strictness = "medium"
+fallback_mode = "safe_response"
+
+[profiles.high_risk]
+preferred_backend = "ollama"
+preferred_model = "gemma4:e4b"
+fallback_model = "gemma4:e2b"
+strictness = "critical"
+fallback_mode = "human_review"
+
 [[endpoints]]
 name = "Blackbox Grok Code"
 enabled = true
@@ -8,6 +49,7 @@ profile = "coding"
 retry_limit = 4
 strictness = "high"
 fallback_mode = "human_review"
+timeout_seconds = 60
 
 [endpoints.auth]
 type = "bearer_env"

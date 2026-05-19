@@ -55,13 +55,15 @@ fn backend_kind_round_trips_from_config_strings() {
 
 #[test]
 fn settings_screen_lists_backend_choices_and_current_config() {
-    let mut cfg = WitnessConfig::default();
-    cfg.gemma = GemmaConfig {
-        backend: "manual".into(),
-        model: "local-gemma-judge".into(),
-        url: "http://localhost:8000/v1".into(),
-        setup_completed: true,
-        auth_header: Some("Bearer secret".into()),
+    let cfg = WitnessConfig {
+        gemma: GemmaConfig {
+            backend: "manual".into(),
+            model: "local-gemma-judge".into(),
+            url: "http://localhost:8000/v1".into(),
+            setup_completed: true,
+            auth_header: Some("Bearer secret".into()),
+        },
+        ..WitnessConfig::default()
     };
     let text = settings_lines(&cfg).join("\n");
     assert!(text.contains("Current backend: manual"));

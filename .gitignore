@@ -34,3 +34,7 @@ logs/*.jsonl
 # Local generated demo video assets
 /demo_videos/*.mp4
 /demo_videos/*.png
+/final_demo_video/
+/the-witness-video-assets/
+/build_video_asset_pack.py
+/write_asset_pack_docs.py

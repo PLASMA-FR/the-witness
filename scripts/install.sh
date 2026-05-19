@@ -10,6 +10,40 @@ WITNESS_STRONG_MODEL="${WITNESS_STRONG_MODEL:-gemma4:e4b}"
 WITNESS_FALLBACK="${WITNESS_FALLBACK:-human_review}"
 WITNESS_SKIP_OLLAMA_PULL="${WITNESS_SKIP_OLLAMA_PULL:-0}"
 
+usage() {
+  cat <<'EOF'
+The Witness installer
+
+Usage:
+  bash scripts/install.sh [--help]
+
+Environment variables:
+  WITNESS_INSTALL_DIR       Binary install directory (default: $HOME/.local/bin)
+  WITNESS_CONFIG_DIR        Config directory (default: $HOME/.config/the-witness)
+  WITNESS_REPO_URL          Git URL used when not run from a checkout
+  WITNESS_DEFAULT_MODEL     Default Ollama model hint (default: gemma4:e2b)
+  WITNESS_STRONG_MODEL      Optional stronger model hint (default: gemma4:e4b)
+  WITNESS_SKIP_OLLAMA_PULL  Set to 1 to never prompt for ollama pull
+
+The installer builds the local Rust binary and prints model pull commands.
+It does not require API keys and will not download Ollama models unless run
+interactively and the user explicitly confirms the prompt.
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  "") ;;
+  *)
+    printf '\033[1;31m[error]\033[0m Unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
 info() { printf '\033[1;34m[info]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*"; }
 err() { printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2; }

@@ -251,7 +251,7 @@ pub fn styled_lines(title: &str, lines: Vec<Line<'static>>, accent: Color) -> Pa
         .block(panel(title, accent))
 }
 
-pub fn badge<'a>(text: &'a str, color: Color) -> Span<'a> {
+pub fn badge(text: &str, color: Color) -> Span<'_> {
     Span::styled(
         format!(" {text} "),
         Style::default()
