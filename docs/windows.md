@@ -37,7 +37,7 @@ the-witness.exe service uninstall
 
 This was authored from Linux and needs validation on Windows before production claims.
 
-## Blackbox endpoint
+## Blackbox endpoint (Example API)
 
 ```powershell
 $env:BLACKBOX_API_KEY="YOUR_KEY_HERE"
