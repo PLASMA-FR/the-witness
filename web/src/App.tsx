@@ -145,6 +145,17 @@ const demoHealth: Health = {
   backend: 'ollama',
   model: 'gemma4:e2b',
   loopback_only: true,
+  dashboard_access: {
+    bind_url: 'http://127.0.0.1:8790',
+    local_url: 'http://127.0.0.1:8790',
+    tailscale: {
+      detected: false,
+      available: false,
+      ip: null,
+      url: null,
+      hint: 'Tailscale was not detected. Start Tailscale or run the app service with --host 0.0.0.0 to expose it to your tailnet.',
+    },
+  },
 };
 
 function useAppData() {
@@ -291,8 +302,8 @@ function Topbar({ health, page, openMenu }: { health?: Health; page: PageName; o
         <span>{page === 'Models' ? 'Choose how The Witness thinks' : page}</span>
       </div>
       <div className="topbar-actions">
-        <StatusPill tone="good" label={health?.ok ? 'Ready' : 'Needs setup'} />
-        <StatusPill tone="info" label={health?.backend ?? 'Ollama'} />
+        <StatusPill tone="good" label={health?.ok ? 'Service running' : 'Needs setup'} />
+        {health?.dashboard_access?.tailscale.available ? <StatusPill tone="info" label="Tailscale ready" /> : <StatusPill tone="info" label={health?.backend ?? 'Ollama'} />}
       </div>
     </header>
   );
@@ -351,6 +362,7 @@ function DashboardPage({ health, config, requests, setPage }: AppData & { config
             <div className="command-row"><code>{health?.proxy ?? 'http://127.0.0.1:8787/v1'}</code><CopyButton value={health?.proxy ?? 'http://127.0.0.1:8787/v1'} /></div>
           </div>
         </article>
+        <DashboardAccessPanel health={health} />
         <SetupChecklist config={config} />
       </section>
       <section className="metric-grid" aria-label="Dashboard metrics">
@@ -372,7 +384,7 @@ function DashboardPage({ health, config, requests, setPage }: AppData & { config
           <div className="legend-row"><StatusPill tone="good" label="Approved" /><StatusPill tone="bad" label="Blocked" /><StatusPill tone="warn" label="Human" /></div>
         </Panel>
         <LiveActivity requests={requests} />
-        <SystemHealthCard />
+        <SystemHealthCard health={health} />
       </section>
       <section className="quick-action-grid">
         <QuickActionCard icon={Radar} title="Add your first endpoint" text="Route an AI app through localhost and start judging every response." action="Open endpoint manager" onClick={() => setPage('Endpoints')} />
@@ -380,6 +392,27 @@ function DashboardPage({ health, config, requests, setPage }: AppData & { config
         <QuickActionCard icon={TerminalSquare} title="Copy curl smoke test" text="Send a non-streaming chat completion through the proxy." action="Copy curl" onClick={() => copyText(curlSample())} />
       </section>
     </>
+  );
+}
+
+function DashboardAccessPanel({ health }: { health?: Health }) {
+  const access = health?.dashboard_access;
+  const localUrl = access?.local_url ?? health?.dashboard ?? 'http://127.0.0.1:8790';
+  const tail = access?.tailscale;
+  const tailUrl = tail?.url;
+  return (
+    <article className="panel checklist">
+      <p className="eyebrow">Dashboard access</p>
+      <h3>Service stays running without opening a browser</h3>
+      <div className="check-row"><span className="ok"><CheckCircle2 size={16} /></span><strong>App service</strong><small>{health?.service_running === false ? 'offline' : 'running'}</small></div>
+      <div className="check-row"><span className="ok"><CheckCircle2 size={16} /></span><strong>Local URL</strong><small>{localUrl}</small></div>
+      {tail?.available && tailUrl ? (
+        <div className="check-row"><span className="ok"><CheckCircle2 size={16} /></span><strong>Tailscale URL</strong><small>{tailUrl}</small></div>
+      ) : (
+        <div className="check-row"><span className="warn"><AlertTriangle size={16} /></span><strong>Tailscale</strong><small>{tail?.hint ?? 'Not detected yet'}</small></div>
+      )}
+      <div className="command-row"><code>{tailUrl ?? localUrl}</code><CopyButton value={tailUrl ?? localUrl} /></div>
+    </article>
   );
 }
 
@@ -410,16 +443,17 @@ function LiveActivity({ requests }: { requests: RequestEvent[] }) {
   return <Panel title="Live activity" description="The last few decisions The Witness made.">{activity.map((r, i) => <div className="activity-row" key={r.id}><span className="activity-pulse" /><div><strong>{friendlyStatus(r.status)}</strong><small>{r.endpoint_name} · {r.retry_attempt} retries · {timeAgo(r.timestamp)}</small></div><VerdictBadge status={r.status} /></div>)}</Panel>;
 }
 
-function SystemHealthCard() {
+function SystemHealthCard({ health }: { health?: Health }) {
+  const tailscale = health?.dashboard_access?.tailscale;
   const checks = [
+    ['App service', health?.service_running === false ? 'offline' : 'running; dashboard browser opens on demand only', health?.service_running === false ? 'bad' : 'good'],
+    ['Dashboard local URL', health?.dashboard_access?.local_url ?? health?.dashboard ?? 'http://127.0.0.1:8790', 'info'],
+    ['Tailscale dashboard', tailscale?.available ? tailscale.url ?? 'available' : tailscale?.hint ?? 'not detected', tailscale?.available ? 'good' : 'warn'],
     ['Ollama', 'reachable', 'good'],
     ['gemma4:e2b', 'default judge', 'good'],
-    ['gemma4:e4b', 'high-risk option', 'warn'],
-    ['Hugging Face model', 'available link', 'info'],
-    ['Blackbox env', 'BLACKBOX_API_KEY only', 'good'],
     ['Logs', 'jsonl writable', 'good'],
   ] as const;
-  return <Panel title="System health" description="Human-readable readiness, not mystery lights.">{checks.map(([name, note, tone]) => <div className="health-row" key={name}><StatusPill tone={tone} label={tone === 'good' ? 'PASS' : tone === 'warn' ? 'WARN' : 'INFO'} /><strong>{name}</strong><small>{note}</small></div>)}</Panel>;
+  return <Panel title="System health" description="Human-readable readiness, not mystery lights.">{checks.map(([name, note, tone]) => <div className="health-row" key={name}><StatusPill tone={tone} label={tone === 'good' ? 'PASS' : tone === 'warn' ? 'WARN' : tone === 'bad' ? 'FAIL' : 'INFO'} /><strong>{name}</strong><small>{note}</small></div>)}</Panel>;
 }
 
 function EndpointsPage({ config, reload, setPage }: AppData & { config: Config }) {
@@ -524,11 +558,12 @@ function DoctorCheckCard({ name, state, fix }: { name: string; state: string; fi
   return <article className="doctor-check"><StatusPill tone={tone} label={state} /><div><strong>{name}</strong><p>{fix}</p></div><button className="copy-mini" onClick={() => copyText(fix.replace('Run: ', ''))}>Copy fix</button></article>;
 }
 
-function SettingsPage({ config }: AppData & { config: Config }) {
+function SettingsPage({ config, health }: AppData & { config: Config }) {
+  const tail = health?.dashboard_access?.tailscale;
   return <><PageHeader kicker="Settings" title="Clear controls, safe defaults"><span>General, proxy, dashboard, models, privacy, service, and theme settings are grouped so they feel manageable.</span></PageHeader><section className="settings-grid">{[
     ['General', [['Default backend', config.gemma.backend], ['Default model', config.gemma.model], ['Fallback', config.defaults.fallback_mode]]],
     ['Proxy', [['Proxy host', '127.0.0.1'], ['Proxy port', '8787'], ['LAN exposure', 'off by default']]],
-    ['Dashboard', [['Control API', '127.0.0.1:8790'], ['Open browser', 'on demand'], ['Service', 'dashboard --no-open']]],
+    ['Dashboard', [['Control API', health?.dashboard_access?.bind_url ?? '127.0.0.1:8790'], ['Open browser', 'manual: use dashboard --open'], ['Service', 'dashboard --no-open --host 0.0.0.0'], ['Tailscale', tail?.available ? tail.url ?? 'available' : tail?.hint ?? 'not detected']]],
     ['Privacy', [['Store prompts', config.defaults.privacy_mode ? 'metadata only' : 'full audit'], ['Secret redaction', 'always on'], ['Log format', config.defaults.log_format]]],
   ].map(([title, rows]) => <Panel key={title as string} title={title as string}>{(rows as string[][]).map(([k, v]) => <label className="setting-row" key={k}><span>{k}</span><input defaultValue={v} /></label>)}<PrimaryButton>Save {title as string}</PrimaryButton></Panel>)}</section></>;
 }

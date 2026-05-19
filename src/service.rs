@@ -192,7 +192,7 @@ fn install_linux() -> Result<()> {
         fs::create_dir_all(parent)?;
     }
     let exe = std::env::current_exe()?;
-    fs::write(&unit, format!("[Unit]\nDescription=The Witness dashboard and control API\nAfter=network.target\n\n[Service]\nExecStart={} dashboard --no-open\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n", exe.display()))?;
+    fs::write(&unit, format!("[Unit]\nDescription=The Witness app service (proxy control API, dashboard browser auto-open disabled)\nAfter=network.target\n\n[Service]\nExecStart={} dashboard --no-open --host 0.0.0.0\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n", exe.display()))?;
     let _ = Command::new("systemctl")
         .args(["--user", "daemon-reload"])
         .status();
@@ -218,7 +218,7 @@ fn install_macos() -> Result<()> {
     fs::write(
         &plist,
         format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>Label</key><string>{}</string><key>ProgramArguments</key><array><string>{}</string><string>dashboard</string><string>--no-open</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/></dict></plist>"#,
+            r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>Label</key><string>{}</string><key>ProgramArguments</key><array><string>{}</string><string>dashboard</string><string>--no-open</string><string>--host</string><string>0.0.0.0</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><true/></dict></plist>"#,
             MACOS_LABEL,
             exe.display()
         ),
@@ -243,7 +243,7 @@ fn install_windows() -> Result<()> {
             "/SC",
             "ONLOGON",
             "/TR",
-            &format!("\"{}\" dashboard --no-open", exe.display()),
+            &format!("\"{}\" dashboard --no-open --host 0.0.0.0", exe.display()),
             "/F",
         ])
         .status()?;

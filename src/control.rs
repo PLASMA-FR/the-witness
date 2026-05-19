@@ -3,6 +3,7 @@ use crate::{
     endpoints::{health, manager},
     models::registry::ModelRegistry,
     setup::doctor,
+    tailscale,
     types::RequestEvent,
 };
 use anyhow::{Context, Result};
@@ -44,8 +45,58 @@ impl Default for DashboardOptions {
         Self {
             host: "127.0.0.1".into(),
             port: 8790,
-            no_open: false,
+            no_open: true,
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DashboardAccess {
+    pub bind_url: String,
+    pub local_url: String,
+    pub tailscale: TailscaleDashboardAccess,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TailscaleDashboardAccess {
+    pub detected: bool,
+    pub available: bool,
+    pub ip: Option<String>,
+    pub url: Option<String>,
+    pub hint: String,
+}
+
+pub fn dashboard_access(addr: SocketAddr, tailscale_ip: Option<IpAddr>) -> DashboardAccess {
+    let port = addr.port();
+    let local_url = format!("http://127.0.0.1:{port}");
+    let bind_url = format!("http://{}", addr);
+    let tailscale = match tailscale_ip {
+        Some(ip) if !addr.ip().is_loopback() => TailscaleDashboardAccess {
+            detected: true,
+            available: true,
+            ip: Some(ip.to_string()),
+            url: Some(format!("http://{ip}:{port}")),
+            hint: "Tailscale detected. Open this dashboard from your tailnet with the Tailscale URL.".into(),
+        },
+        Some(ip) => TailscaleDashboardAccess {
+            detected: true,
+            available: false,
+            ip: Some(ip.to_string()),
+            url: None,
+            hint: "Tailscale detected, but the dashboard is bound to localhost. Restart with `the-witness dashboard --host 0.0.0.0` or install the user service to expose it on your tailnet.".into(),
+        },
+        None => TailscaleDashboardAccess {
+            detected: false,
+            available: false,
+            ip: None,
+            url: None,
+            hint: "Tailscale was not detected. Install or start Tailscale to open the dashboard through your tailnet.".into(),
+        },
+    };
+    DashboardAccess {
+        bind_url,
+        local_url,
+        tailscale,
     }
 }
 
@@ -60,6 +111,7 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
     if !host.is_loopback() {
         eprintln!("WARNING: The Witness dashboard/control API is not bound to localhost. API responses redact secrets, but expose this only on trusted networks.");
     }
+    let access = dashboard_access(addr, tailscale::detect_tailscale_ipv4());
     let state = ControlState {
         config_path,
         root,
@@ -68,10 +120,19 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
         config: Arc::new(RwLock::new(cfg)),
     };
     let app = router(state);
-    println!("The Witness dashboard/control API listening on http://{addr}");
-    println!("Open http://{addr} in your browser. Press Ctrl+C to stop.");
+    println!("The Witness app service listening on {}", access.bind_url);
+    println!("Local dashboard URL: {}", access.local_url);
+    if access.tailscale.available {
+        if let Some(url) = &access.tailscale.url {
+            println!("Tailscale dashboard URL: {url}");
+        }
+    } else if access.tailscale.detected {
+        println!("Tailscale detected: {}", access.tailscale.hint);
+    }
+    println!("Dashboard browser auto-open is disabled by default. Use `the-witness dashboard --open` to launch it once.");
+    println!("Press Ctrl+C to stop the app service.");
     if !opts.no_open {
-        let _ = open_browser(&format!("http://{addr}"));
+        let _ = open_browser(&access.local_url);
     }
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
@@ -139,10 +200,13 @@ fn redacted_config(mut cfg: WitnessConfig) -> WitnessConfig {
 
 async fn api_health(State(state): State<ControlState>) -> Json<Value> {
     let cfg = state.config.read().await;
+    let access = dashboard_access(state.dashboard_addr, tailscale::detect_tailscale_ipv4());
     Json(json!({
         "ok": true,
         "service": "the-witness",
-        "dashboard": format!("http://{}", state.dashboard_addr),
+        "service_running": true,
+        "dashboard": access.local_url,
+        "dashboard_access": access,
         "proxy": format!("http://{}/v1", state.proxy_addr),
         "setup_ready": cfg.setup_ready(),
         "backend": cfg.gemma.backend,

@@ -46,6 +46,10 @@ pub enum Commands {
         proxy_addr: Option<SocketAddr>,
     },
     Dashboard {
+        /// Open the dashboard in the default browser once. The app service itself still runs either way.
+        #[arg(long)]
+        open: bool,
+        /// Legacy alias. Browser auto-open is disabled by default.
         #[arg(long)]
         no_open: bool,
         #[arg(long, default_value = "127.0.0.1")]
@@ -158,6 +162,7 @@ pub async fn run() -> Result<()> {
         Commands::Doctor => doctor(&path).await,
         Commands::Start { proxy_addr } => start(&path, proxy_addr).await,
         Commands::Dashboard {
+            open,
             no_open,
             host,
             port,
@@ -167,7 +172,7 @@ pub async fn run() -> Result<()> {
                 DashboardOptions {
                     host,
                     port,
-                    no_open,
+                    no_open: no_open || !open,
                 },
             )
             .await
