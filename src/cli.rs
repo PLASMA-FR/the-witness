@@ -147,14 +147,105 @@ pub async fn run() -> Result<()> {
             Ok(())
         }
         Commands::Replay { request_id } => {
-            println!("Replay requested for {request_id}. MVP stores enough audit data for replay; full interactive replay is next.");
+            let root = path.parent().unwrap_or(Path::new("."));
+            println!("{}", replay_request_summary(root, &request_id)?);
             Ok(())
         }
         Commands::Export { request_id, format } => {
-            println!("Export {request_id} as {format}. Use JSONL log until rich exporter lands.");
+            let root = path.parent().unwrap_or(Path::new("."));
+            println!("{}", export_request_report(root, &request_id, &format)?);
             Ok(())
         }
     }
+}
+
+pub fn replay_request_summary(root: &Path, request_id: &str) -> Result<String> {
+    let event = find_request_event(root, request_id)?;
+    Ok(format!(
+        "Request ID: {}\nEndpoint: {}\nModel: {}\nProfile: {}\nStatus: {:?}\nRetry attempt: {}\nLatency: {}ms\nTimestamp: {}",
+        event.id,
+        event.endpoint_name,
+        event.model.as_deref().unwrap_or("<unknown>"),
+        event.profile,
+        event.status,
+        event.retry_attempt,
+        event.latency_ms,
+        event.timestamp
+    ))
+}
+
+pub fn export_request_report(root: &Path, request_id: &str, format: &str) -> Result<String> {
+    match format {
+        "markdown" | "md" => {
+            let event = find_request_event(root, request_id)?;
+            let verdict = event
+                .judge_verdict
+                .as_ref()
+                .map(|v| v.verdict.as_str())
+                .unwrap_or("<none>");
+            Ok(format!(
+                "# The Witness Verification Report\n\n- Request ID: {}\n- Endpoint: {}\n- Model: {}\n- Profile: {}\n- Status: {:?}\n- Retry attempt: {}\n- Latency: {}ms\n- Timestamp: {}\n- Verdict: {}\n\n## Request Body\n\n```json\n{}\n```\n\n## Candidate Response\n\n```json\n{}\n```\n\n## Final Response\n\n```json\n{}\n```",
+                event.id,
+                event.endpoint_name,
+                event.model.as_deref().unwrap_or("<unknown>"),
+                event.profile,
+                event.status,
+                event.retry_attempt,
+                event.latency_ms,
+                event.timestamp,
+                verdict,
+                pretty_json(&event.request_body),
+                pretty_json_opt(&event.candidate_response),
+                pretty_json_opt(&event.final_response)
+            ))
+        }
+        "json" => Ok(serde_json::to_string_pretty(&find_request_event(
+            root, request_id,
+        )?)?),
+        "jsonl" => Ok(serde_json::to_string(&find_request_event(
+            root, request_id,
+        )?)?),
+        other => anyhow::bail!("unsupported export format: {other}; expected markdown or json"),
+    }
+}
+
+fn find_request_event(root: &Path, request_id: &str) -> Result<crate::types::RequestEvent> {
+    let path = root.join("logs/witness.jsonl");
+    let text = std::fs::read_to_string(&path)
+        .with_context(|| format!("could not read audit log {}", path.display()))?;
+    let mut parse_errors = Vec::new();
+    let mut found = None;
+    for (idx, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        match serde_json::from_str::<crate::types::RequestEvent>(line) {
+            Ok(event) if event.id.to_string() == request_id => found = Some(event),
+            Ok(_) => {}
+            Err(err) => parse_errors.push(format!("line {}: {err}", idx + 1)),
+        }
+    }
+    if let Some(event) = found {
+        Ok(event)
+    } else if parse_errors.is_empty() {
+        anyhow::bail!("request id not found: {request_id}")
+    } else {
+        anyhow::bail!(
+            "request id not found: {request_id}; ignored malformed log lines: {}",
+            parse_errors.join("; ")
+        )
+    }
+}
+
+fn pretty_json(value: &serde_json::Value) -> String {
+    serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
+}
+
+fn pretty_json_opt(value: &Option<serde_json::Value>) -> String {
+    value
+        .as_ref()
+        .map(pretty_json)
+        .unwrap_or_else(|| "null".to_string())
 }
 fn init(dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dir.join("src"))?;
