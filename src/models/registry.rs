@@ -139,6 +139,54 @@ impl ModelRegistry {
             m.status = status.into();
         }
     }
+
+    pub fn add_or_update_custom_ollama_model(
+        &mut self,
+        model: &str,
+        display_name: Option<&str>,
+    ) -> ModelEntry {
+        let model = model.trim();
+        let display_name = display_name
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(model);
+        let id = format!("ollama-{}", slugify_model_id(model));
+        let entry = ModelEntry {
+            id: id.clone(),
+            display_name: display_name.into(),
+            backend: "ollama".into(),
+            base_model: String::new(),
+            model: model.into(),
+            source: "ollama-custom".into(),
+            slug: model.into(),
+            local_path: String::new(),
+            installed: false,
+            last_tested: String::new(),
+            status: "custom Ollama model; Gemma remains the primary recommended judge".into(),
+        };
+        if let Some(existing) = self
+            .models
+            .iter_mut()
+            .find(|m| m.id == id || (m.backend == "ollama" && m.model == model))
+        {
+            *existing = entry.clone();
+        } else {
+            self.models.push(entry.clone());
+        }
+        entry
+    }
+}
+
+fn slugify_model_id(model: &str) -> String {
+    let mut out = String::new();
+    for ch in model.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+        } else if !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    out.trim_matches('-').to_string()
 }
 
 pub fn registry_path(root: &Path) -> PathBuf {

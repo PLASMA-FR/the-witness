@@ -3,6 +3,7 @@ use crate::{
     endpoints::{health, manager},
     models::registry::ModelRegistry,
     setup::doctor,
+    tailscale,
     types::RequestEvent,
 };
 use anyhow::{Context, Result};
@@ -44,9 +45,67 @@ impl Default for DashboardOptions {
         Self {
             host: "127.0.0.1".into(),
             port: 8790,
-            no_open: false,
+            no_open: true,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DashboardAccess {
+    pub bind_url: String,
+    pub local_url: String,
+    pub tailscale: TailscaleDashboardAccess,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TailscaleDashboardAccess {
+    pub detected: bool,
+    pub available: bool,
+    pub ip: Option<String>,
+    pub url: Option<String>,
+    pub hint: String,
+}
+
+pub fn dashboard_access(addr: SocketAddr, tailscale_ip: Option<IpAddr>) -> DashboardAccess {
+    let port = addr.port();
+    let local_url = format!("http://127.0.0.1:{port}");
+    let bind_url = format!("http://{}", addr);
+    let tailscale = match tailscale_ip {
+        Some(ip) if !addr.ip().is_loopback() => TailscaleDashboardAccess {
+            detected: true,
+            available: true,
+            ip: Some(ip.to_string()),
+            url: Some(format!("http://{ip}:{port}")),
+            hint: "Tailscale detected. Open this dashboard from your tailnet with the Tailscale URL.".into(),
+        },
+        Some(ip) => TailscaleDashboardAccess {
+            detected: true,
+            available: false,
+            ip: Some(ip.to_string()),
+            url: None,
+            hint: "Tailscale detected, but the dashboard is bound to localhost. Restart with `the-witness dashboard --host 0.0.0.0` or install the user service to expose it on your tailnet.".into(),
+        },
+        None => TailscaleDashboardAccess {
+            detected: false,
+            available: false,
+            ip: None,
+            url: None,
+            hint: "Tailscale was not detected. Install or start Tailscale to open the dashboard through your tailnet.".into(),
+        },
+    };
+    DashboardAccess {
+        bind_url,
+        local_url,
+        tailscale,
+    }
+}
+
+pub async fn bind_dashboard_listener(addr: SocketAddr) -> Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::bind(addr).await.with_context(|| {
+        format!(
+            "dashboard/control API cannot bind to {addr}; another process is already using that port or the address is unavailable. Stop the existing service or choose a different --port."
+        )
+    })
 }
 
 pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Result<()> {
@@ -57,9 +116,11 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
         .parse()
         .with_context(|| format!("invalid dashboard host {}", opts.host))?;
     let addr = SocketAddr::new(host, opts.port);
+    let listener = bind_dashboard_listener(addr).await?;
     if !host.is_loopback() {
         eprintln!("WARNING: The Witness dashboard/control API is not bound to localhost. API responses redact secrets, but expose this only on trusted networks.");
     }
+    let access = dashboard_access(addr, tailscale::detect_tailscale_ipv4());
     let state = ControlState {
         config_path,
         root,
@@ -68,12 +129,20 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
         config: Arc::new(RwLock::new(cfg)),
     };
     let app = router(state);
-    println!("The Witness dashboard/control API listening on http://{addr}");
-    println!("Open http://{addr} in your browser. Press Ctrl+C to stop.");
-    if !opts.no_open {
-        let _ = open_browser(&format!("http://{addr}"));
+    println!("The Witness app service listening on {}", access.bind_url);
+    println!("Local dashboard URL: {}", access.local_url);
+    if access.tailscale.available {
+        if let Some(url) = &access.tailscale.url {
+            println!("Tailscale dashboard URL: {url}");
+        }
+    } else if access.tailscale.detected {
+        println!("Tailscale detected: {}", access.tailscale.hint);
     }
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    println!("Dashboard browser auto-open is disabled by default. Use `the-witness dashboard --open` to launch it once.");
+    println!("Press Ctrl+C to stop the app service.");
+    if !opts.no_open {
+        let _ = open_browser(&access.local_url);
+    }
     axum::serve(listener, app).await?;
     Ok(())
 }
@@ -81,8 +150,14 @@ pub async fn serve_dashboard(config_path: PathBuf, opts: DashboardOptions) -> Re
 pub fn router(state: ControlState) -> Router {
     Router::new()
         .route("/api/health", get(api_health))
+        .route("/api/system/status", get(api_system_status))
         .route("/api/config", get(api_config).put(api_put_config))
+        .route("/api/settings", get(api_config).put(api_put_config))
         .route("/api/models", get(api_models))
+        .route(
+            "/api/models/custom-ollama",
+            post(api_add_custom_ollama_model),
+        )
         .route("/api/models/download", post(api_model_download))
         .route("/api/models/test", post(api_model_test))
         .route("/api/endpoints", get(api_endpoints).post(api_add_endpoint))
@@ -137,12 +212,24 @@ fn redacted_config(mut cfg: WitnessConfig) -> WitnessConfig {
     cfg
 }
 
+fn scrub_config_secret_markers(cfg: &mut WitnessConfig) {
+    if cfg.gemma.auth_header.as_deref() == Some("[REDACTED]") {
+        cfg.gemma.auth_header = None;
+    }
+    for ep in &mut cfg.endpoints {
+        scrub_incoming_secret_markers(ep);
+    }
+}
+
 async fn api_health(State(state): State<ControlState>) -> Json<Value> {
     let cfg = state.config.read().await;
+    let access = dashboard_access(state.dashboard_addr, tailscale::detect_tailscale_ipv4());
     Json(json!({
         "ok": true,
         "service": "the-witness",
-        "dashboard": format!("http://{}", state.dashboard_addr),
+        "service_running": true,
+        "dashboard": access.local_url,
+        "dashboard_access": access,
         "proxy": format!("http://{}/v1", state.proxy_addr),
         "setup_ready": cfg.setup_ready(),
         "backend": cfg.gemma.backend,
@@ -155,13 +242,40 @@ async fn api_config(State(state): State<ControlState>) -> Json<WitnessConfig> {
     Json(redacted_config(state.config.read().await.clone()))
 }
 
+async fn api_system_status(State(state): State<ControlState>) -> Json<Value> {
+    let cfg = state.config.read().await;
+    let enabled = cfg
+        .endpoints
+        .iter()
+        .filter(|endpoint| endpoint.enabled)
+        .count();
+    let access = dashboard_access(state.dashboard_addr, tailscale::detect_tailscale_ipv4());
+    Json(json!({
+        "ok": true,
+        "service": "the-witness",
+        "backend": cfg.gemma.backend,
+        "model": cfg.gemma.model,
+        "strong_model": "gemma4:e4b",
+        "fallback_mode": cfg.defaults.fallback_mode,
+        "setup_ready": cfg.setup_ready(),
+        "privacy_mode": cfg.defaults.privacy_mode,
+        "dashboard": access,
+        "proxy": {
+            "url": format!("http://{}/v1", state.proxy_addr),
+            "status": "configured"
+        },
+        "endpoints": {
+            "total": cfg.endpoints.len(),
+            "enabled": enabled
+        }
+    }))
+}
+
 async fn api_put_config(
     State(state): State<ControlState>,
     Json(mut cfg): Json<WitnessConfig>,
 ) -> Result<Json<WitnessConfig>, ApiError> {
-    for ep in &mut cfg.endpoints {
-        scrub_incoming_secret_markers(ep);
-    }
+    scrub_config_secret_markers(&mut cfg);
     cfg.save(&state.config_path)?;
     *state.config.write().await = cfg.clone();
     Ok(Json(redacted_config(cfg)))
@@ -175,6 +289,47 @@ async fn api_models(State(state): State<ControlState>) -> Result<Json<Value>, Ap
             "huggingface": "https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge",
             "colab": "https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing"
         }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+struct CustomOllamaModelRequest {
+    model: String,
+    #[serde(default)]
+    display_name: Option<String>,
+    #[serde(default)]
+    set_default: bool,
+}
+
+async fn api_add_custom_ollama_model(
+    State(state): State<ControlState>,
+    Json(body): Json<CustomOllamaModelRequest>,
+) -> Result<Json<Value>, ApiError> {
+    if body.model.trim().is_empty() {
+        return Err(ApiError {
+            status: StatusCode::BAD_REQUEST,
+            message: "Custom Ollama model name cannot be empty.".into(),
+        });
+    }
+    let registry_path = crate::models::registry::registry_path(&state.root);
+    let mut registry = ModelRegistry::load_or_default(&state.root)?;
+    let entry =
+        registry.add_or_update_custom_ollama_model(&body.model, body.display_name.as_deref());
+    registry.save(&registry_path)?;
+    if body.set_default {
+        let mut cfg = state.config.write().await;
+        cfg.gemma.backend = "ollama".into();
+        cfg.gemma.model = entry.model.clone();
+        if cfg.gemma.url.trim().is_empty() {
+            cfg.gemma.url = "http://localhost:11434".into();
+        }
+        cfg.save(&state.config_path)?;
+    }
+    Ok(Json(json!({
+        "ok": true,
+        "model": entry,
+        "models": registry.models,
+        "message": "Custom Ollama model saved. Gemma 4 remains the primary recommended judge; custom models are optional advanced choices."
     })))
 }
 

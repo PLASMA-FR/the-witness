@@ -1,27 +1,35 @@
-# The Witness status
+# Project Status
+
+Who this is for: judges, users, and maintainers who want a quick, honest snapshot of what is available.
+
+What you will do: confirm the supported surfaces, see which pieces require local setup, and find the detailed test report.
+
+The Witness is a local-first Gemma 4 reliability firewall for AI endpoints.
 
 | Feature | Status | Notes |
 |---|---|---|
-| CLI | Working | Tested on Linux. Existing commands preserved. |
-| TUI | Working | Existing TUI preserved; Linux smoke/layout tests run. |
-| Web UI | Working | React/Vite dashboard builds and is served by `the-witness dashboard`. |
-| Dashboard API | Working | Local control API under `http://127.0.0.1:8790/api/*`; tested on Linux. |
-| Proxy | Working | OpenAI-compatible non-streaming proxy tested with demo and Blackbox routing fix. |
-| Replay/export | Working | Reads JSONL audit logs and exports Markdown/JSON/JSONL. |
-| Linux installer | Working/tested | `scripts/install.sh` syntax and safe install flow tested on Linux. |
-| Windows installer | Script created | PowerShell script created; syntax read check possible on Linux only if `pwsh` is installed. Needs Windows validation. |
-| Linux systemd user service | Created | Code writes `~/.config/systemd/user/the-witness.service`; status checked best-effort on Linux. |
-| macOS launchd service | Created/untested | Plist generation implemented; not tested on macOS in this environment. |
-| Windows service/task | Created/untested | Scheduled Task fallback implemented; not tested on Windows in this environment. |
-| Ollama backend | Supported | Default backend. Runtime depends on local Ollama and pulled models. |
-| gemma4:e2b | Default | Confirmed default judge model. |
-| gemma4:e4b | Strong/high-risk | Confirmed high-risk judge model. |
-| llama.cpp backend | Supported | Config/test path supported; live server not tested unless user runs one. |
-| LiteRT backend | Experimental/supported | Setup surface exists; runtime not fully tested here. |
-| Unsloth/HF model | Supported | HF link documented: https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge |
-| Blackbox endpoint | Working | Uses `BLACKBOX_API_KEY`; real upstream/proxy path previously verified. |
-| Cactus | Not claimed | Not part of this release. |
+| CLI | Working | Setup, doctor, model, endpoint, dashboard, service, replay, export, and logs command surfaces are present. |
+| TUI | Working | First-run setup and operator screens run through `the-witness start`. |
+| Web UI | Working | Local mission-control dashboard at `http://127.0.0.1:8790`. |
+| Dashboard API | Working | Localhost control API covers health, config/settings, models, endpoints, requests, logs, doctor, and proxy controls. |
+| Local proxy | Working | Non-streaming OpenAI-compatible chat completions are supported for the MVP. |
+| Prompt repair | Working | Blocked responses produce a repaired retry prompt and retry chain. |
+| JSONL audit logs | Working | Verdicts, retries, repairs, and endpoint events are recorded. |
+| Demo mode | Working | Reviewers can test the approval loop without external API keys. |
+| Linux installer | Working | `scripts/install.sh` builds the release binary and prints next steps. |
+| Windows installer | Available | `scripts/install.ps1` builds the release binary and prints PowerShell-specific next steps. |
+| macOS support | Available path | Uses the Rust binary and shell installer; run `the-witness doctor` on the target Mac before live use. |
+| Service support | Available | User service helpers cover systemd, launchd, and Windows Scheduled Task flows. |
+| Ollama backend | Supported | Default local judge path using `gemma4:e2b`; `gemma4:e4b` is the stronger/high-risk option. |
+| llama.cpp backend | Supported | Configure a local server URL or model path, then run doctor/model tests. |
+| LiteRT prefilter | Optional | Requires a LiteRT-compatible model and runtime. |
+| Unsloth fine-tuned judge | Available | Public adapter: `https://huggingface.co/ahmadalfakeh/witness-gemma4-e2b-judge`. |
+| Blackbox endpoint | Example integration | Uses `BLACKBOX_API_KEY` from the environment and never stores the key value in config. |
+| Streaming chat | Later work | The MVP focuses on non-streaming OpenAI-compatible chat completions. |
+| Cactus | Not claimed | This submission focuses on Ollama, llama.cpp, LiteRT, and Unsloth. |
 
-Platform actually tested: Linux.
+## Responsible boundaries
 
-Platforms not actually tested here: Windows and macOS.
+The Witness reduces risk; it does not guarantee truth. High-risk medical, legal, financial, emergency, and safety-critical outputs should stay reviewable by qualified people.
+
+For detailed evidence, see [`docs/final_full_test_report.md`](final_full_test_report.md).

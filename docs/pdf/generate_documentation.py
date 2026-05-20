@@ -269,7 +269,7 @@ Example: `print(Hello World)` is rejected because the Python string is not quote
 - llama.cpp: local/resource-constrained inference using Gemma models.
 - LiteRT: experimental edge prefilter path.
 - Unsloth: public Colab fine-tuning notebook and Hugging Face adapter.
-- Cactus: architecture is Cactus-ready for future mobile companion work; mobile support is not claimed as completed.
+- Cactus: not claimed in this submission.
 
 ## 13. Impact Tracks
 
@@ -289,7 +289,7 @@ API keys are never stored in docs. Examples use env vars. Authorization headers 
 
 ## 16. Limitations
 
-The Witness reduces risk but does not guarantee correctness. Gemma can be wrong. High-risk medical/legal/financial outputs still need professionals. Local performance depends on model and hardware. LiteRT is experimental. Cactus/mobile companion is future work. Streaming support may be limited. Fine-tuned model quality depends on training data.
+The Witness reduces risk but does not guarantee correctness. Gemma can be wrong. High-risk medical/legal/financial outputs still need professionals. Local performance depends on model and hardware. LiteRT requires a compatible runtime and model. Cactus is not claimed in this submission. Streaming support starts with non-streaming MVP scope. Fine-tuned model quality depends on training data.
 
 ## 17. Reproducibility
 
@@ -584,7 +584,7 @@ auth: bearer_env BLACKBOX_API_KEY</code></pre></div>
 ''', 'Security')}
 
 {page('17. Limitations', '''
-  <ul><li>The Witness reduces risk but does not guarantee correctness.</li><li>Gemma judge decisions can be wrong.</li><li>High-risk medical/legal/financial outputs still need professionals.</li><li>Local performance depends on model and hardware.</li><li>LiteRT may be experimental if not fully tested.</li><li>Cactus/mobile companion is future work unless implemented.</li><li>Streaming support may be limited.</li><li>Fine-tuned model quality depends on training data.</li></ul>
+  <ul><li>The Witness reduces risk but does not guarantee correctness.</li><li>Gemma judge decisions can be wrong.</li><li>High-risk medical/legal/financial outputs still need professionals.</li><li>Local performance depends on model and hardware.</li><li>LiteRT requires target runtime validation.</li><li>Cactus/mobile companion is future work unless implemented.</li><li>Streaming support may be limited.</li><li>Fine-tuned model quality depends on training data.</li></ul>
   <div class="callout"><strong>Honest claim:</strong> The value of The Witness is a practical reliability layer, not a promise of perfect safety.</div>
 ''', 'Known boundaries')}
 

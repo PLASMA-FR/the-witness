@@ -10,5 +10,6 @@ pub mod repair;
 pub mod service;
 pub mod setup;
 pub mod storage;
+pub mod tailscale;
 pub mod tui;
 pub mod types;

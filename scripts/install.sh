@@ -52,7 +52,11 @@ have() { command -v "$1" >/dev/null 2>&1; }
 require_tool() {
   local tool="$1"
   if ! have "$tool"; then
-    err "Required tool missing: $tool"
+    err "Required tool not found: $tool"
+    case "$tool" in
+      git) err "Why it matters: the installer clones the project when it is not run from an existing checkout." ;;
+      curl) err "Why it matters: curl is used by setup docs and model/runtime checks." ;;
+    esac
     return 1
   fi
 }
@@ -63,8 +67,8 @@ for tool in git curl; do
 done
 
 if ! have cargo; then
-  err "Rust/cargo is missing. Install Rust with rustup, then rerun this installer:"
-  printf '  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh\n' >&2
+  err "Rust/cargo is not available in PATH. Why it matters: The Witness is installed as a local Rust binary. Fix: install Rust with rustup, then rerun this installer:"
+  printf '  curl --proto '\''=https'\'' --tlsv1.2 -sSf https://sh.rustup.rs | sh\n' >&2
   printf '  source "$HOME/.cargo/env"\n' >&2
   missing=1
 fi
@@ -106,7 +110,7 @@ if [ -f witness.toml ] && [ ! -f "$WITNESS_CONFIG_DIR/witness.toml" ]; then
 elif [ -f "$WITNESS_CONFIG_DIR/witness.toml" ]; then
   info "Config already exists: $WITNESS_CONFIG_DIR/witness.toml"
 else
-  warn "Default witness.toml not found; run the-witness setup to create config."
+  warn "Default witness.toml was not found in this checkout. Fix: run the-witness setup to create config before live endpoint watching."
 fi
 
 case ":$PATH:" in
@@ -152,7 +156,7 @@ info "Running doctor if possible"
 if "$THE_WITNESS" doctor; then
   info "Doctor passed readiness checks"
 else
-  warn "Doctor reported incomplete readiness. This is expected until Ollama/models/Hugging Face adapter/endpoint setup are configured."
+  warn "Doctor found readiness items to finish. This is expected until local models, optional adapters, or endpoint credentials are configured. Run the fix commands above, or choose demo mode in setup for a local walkthrough."
 fi
 
 cat <<EOF

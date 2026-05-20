@@ -36,16 +36,25 @@ impl Cli {
 }
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// Create a starter witness.toml in the chosen project directory.
     Init {
         path: PathBuf,
     },
+    /// Re-run the first-run setup wizard and readiness checks.
     Setup,
+    /// Check config, local models, proxy ports, logs, and endpoint prerequisites.
     Doctor,
+    /// Start the terminal UI, or start only the proxy when --proxy-addr is provided.
     Start {
         #[arg(long)]
         proxy_addr: Option<SocketAddr>,
     },
+    /// Start the local Web UI and control API. It binds to localhost by default.
     Dashboard {
+        /// Open the dashboard in the default browser once. The app service itself still runs either way.
+        #[arg(long)]
+        open: bool,
+        /// Legacy alias. Browser auto-open is disabled by default.
         #[arg(long)]
         no_open: bool,
         #[arg(long, default_value = "127.0.0.1")]
@@ -90,6 +99,8 @@ pub enum ModelCommands {
     List,
     Install(ModelInstall),
     Download(ModelDownload),
+    /// Register an editable custom Ollama model in models/models.toml.
+    AddOllama(ModelAddOllama),
     Test(ModelTest),
 }
 #[derive(Args, Debug)]
@@ -98,6 +109,21 @@ pub struct ModelInstall {
     pub backend: Option<String>,
     #[arg(long)]
     pub model: Option<String>,
+}
+#[derive(Args, Debug)]
+pub struct ModelAddOllama {
+    /// Ollama model tag/name, for example gemma4:e2b or your-local-model:latest.
+    #[arg(long)]
+    pub model: String,
+    /// Optional friendly label shown in the Web UI model manager.
+    #[arg(long)]
+    pub display_name: Option<String>,
+    /// Also set this model as the current judge model.
+    #[arg(long)]
+    pub set_default: bool,
+    /// Pull the model through Ollama after registering it.
+    #[arg(long)]
+    pub pull: bool,
 }
 #[derive(Args, Debug)]
 pub struct ModelDownload {
@@ -158,6 +184,7 @@ pub async fn run() -> Result<()> {
         Commands::Doctor => doctor(&path).await,
         Commands::Start { proxy_addr } => start(&path, proxy_addr).await,
         Commands::Dashboard {
+            open,
             no_open,
             host,
             port,
@@ -167,7 +194,7 @@ pub async fn run() -> Result<()> {
                 DashboardOptions {
                     host,
                     port,
-                    no_open,
+                    no_open: no_open || !open,
                 },
             )
             .await
@@ -271,14 +298,21 @@ pub fn export_request_report(root: &Path, request_id: &str, format: &str) -> Res
         "jsonl" => Ok(serde_json::to_string(&find_request_event(
             root, request_id,
         )?)?),
-        other => anyhow::bail!("unsupported export format: {other}; expected markdown or json"),
+        other =>            anyhow::bail!("unsupported export format: {other}; expected markdown, json, or jsonl. Why it matters: export reports should be readable and safe to share. Fix: use `--format markdown`, `--format json`, or `--format jsonl`.")
     }
 }
 
 fn find_request_event(root: &Path, request_id: &str) -> Result<crate::types::RequestEvent> {
     let path = root.join("logs/witness.jsonl");
-    let text = std::fs::read_to_string(&path)
-        .with_context(|| format!("could not read audit log {}", path.display()))?;
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            anyhow::bail!("request id not found: {request_id}; audit log is empty or has not been created yet. Why it matters: replay/export needs a saved request event. Fix: send traffic through a watched endpoint, then run `the-witness logs` to confirm events are being written.")
+        }
+        Err(err) => {
+            return Err(err).with_context(|| format!("could not read audit log {}", path.display()))
+        }
+    };
     let mut parse_errors = Vec::new();
     let mut found = None;
     for (idx, line) in text.lines().enumerate() {
@@ -294,10 +328,10 @@ fn find_request_event(root: &Path, request_id: &str) -> Result<crate::types::Req
     if let Some(event) = found {
         Ok(event)
     } else if parse_errors.is_empty() {
-        anyhow::bail!("request id not found: {request_id}")
+        anyhow::bail!("request id not found: {request_id}. Fix: run `the-witness logs`, copy an existing request ID, and try again.")
     } else {
         anyhow::bail!(
-            "request id not found: {request_id}; ignored malformed log lines: {}",
+            "request id not found: {request_id}; some audit log lines could not be parsed and were ignored: {}",
             parse_errors.join("; ")
         )
     }
@@ -318,8 +352,9 @@ fn init(dir: &Path) -> Result<()> {
     let cfg = WitnessConfig::default();
     cfg.save(&dir.join("witness.toml"))?;
     println!(
-        "Initialized The Witness config at {}",
-        dir.join("witness.toml").display()
+        "The Witness project config is ready at {}. Next: run `the-witness --config {}/witness.toml setup`, then `the-witness doctor`.",
+        dir.join("witness.toml").display(),
+        dir.display()
     );
     Ok(())
 }
@@ -348,7 +383,7 @@ async fn doctor(path: &Path) -> Result<()> {
 async fn start(path: &Path, addr: Option<SocketAddr>) -> Result<()> {
     let cfg = load_or_default(path)?;
     if !cfg.setup_ready() {
-        println!("Setup incomplete; opening setup wizard first.");
+        println!("Setup needs attention before live endpoint watching. Opening the setup wizard now; choose demo mode if you want a local walkthrough first.");
         let cfg = setup::wizard::run_setup_wizard(path).await?;
         return App::new_with_path(cfg, path.to_path_buf()).run();
     }
@@ -402,7 +437,7 @@ async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
             let backend = mi.backend.unwrap_or(cfg.gemma.backend);
             let model = mi.model.unwrap_or(cfg.gemma.model);
             let kind = setup::backends::BackendKind::from_config(&backend)
-                .ok_or_else(|| anyhow::anyhow!("unknown backend: {backend}"))?;
+                .ok_or_else(|| anyhow::anyhow!("Unknown judge backend `{backend}`. Fix: choose one of ollama, llamacpp, litert, unsloth, manual, or demo."))?;
             let out =
                 setup::installer::install_backend(kind, &model, Some(&cfg.gemma.url), true).await?;
             println!("{out}");
@@ -419,7 +454,7 @@ async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
                 && !(requested_source == "hf" && entry.source == "huggingface")
             {
                 anyhow::bail!(
-                    "model {} is registered with source {}, not {}",
+                    "Model `{}` is registered with source `{}`, not `{}`. Fix: run `the-witness model list`, then use the source shown for that model.",
                     dl.model,
                     entry.source,
                     requested_source
@@ -431,6 +466,44 @@ async fn model(path: &Path, cmd: ModelCommands) -> Result<()> {
             let registry_path = crate::models::registry::registry_path(root);
             registry.save(&registry_path)?;
             println!("{out}");
+            Ok(())
+        }
+        ModelCommands::AddOllama(add) => {
+            if add.model.trim().is_empty() {
+                anyhow::bail!(
+                    "Custom Ollama model name cannot be empty. Fix: pass `--model <ollama-tag>`."
+                );
+            }
+            let registry_path = crate::models::registry::registry_path(root);
+            let mut registry = crate::models::registry::ModelRegistry::load_or_default(root)?;
+            let entry =
+                registry.add_or_update_custom_ollama_model(&add.model, add.display_name.as_deref());
+            registry.save(&registry_path)?;
+            if add.set_default {
+                cfg.gemma.backend = "ollama".into();
+                cfg.gemma.model = entry.model.clone();
+                cfg.gemma.url = if cfg.gemma.url.trim().is_empty() {
+                    "http://localhost:11434".into()
+                } else {
+                    cfg.gemma.url.clone()
+                };
+                cfg.save(path)?;
+            }
+            if add.pull {
+                let out = setup::installer::install_backend(
+                    setup::backends::BackendKind::Ollama,
+                    &entry.model,
+                    Some(&cfg.gemma.url),
+                    true,
+                )
+                .await?;
+                println!("{out}");
+            }
+            println!(
+                "Registered custom Ollama model `{}` in {}. Gemma 4 remains the primary recommended judge; use this custom model only when you intentionally select it.",
+                entry.model,
+                registry_path.display()
+            );
             Ok(())
         }
         ModelCommands::Test(t) => {
@@ -490,16 +563,16 @@ async fn endpoint(path: &Path, cmd: EndpointCommands) -> Result<()> {
                 },
             )?;
             cfg.save(path)?;
-            println!("Endpoint saved.");
+            println!("Endpoint is now being watched. Send traffic to the local proxy URL to begin verification.");
             Ok(())
         }
         EndpointCommands::AddBlackbox => {
             if std::env::var("BLACKBOX_API_KEY").is_err() {
-                anyhow::bail!("BLACKBOX_API_KEY is not set. Run: export BLACKBOX_API_KEY=\"...\" (do not put API keys in config files or logs)");
+                anyhow::bail!("BLACKBOX_API_KEY is not set. The Blackbox endpoint uses this environment variable instead of storing your key. Fix: run `export BLACKBOX_API_KEY=\"YOUR_KEY_HERE\"`, then retry `the-witness endpoint add-blackbox`.");
             }
             manager::add_endpoint(&mut cfg, WitnessConfig::blackbox_endpoint())?;
             cfg.save(path)?;
-            println!("Blackbox Grok Code endpoint saved using auth env BLACKBOX_API_KEY.");
+            println!("Blackbox Grok Code is now being watched. The key stays in BLACKBOX_API_KEY; The Witness stores only the environment variable name.");
             Ok(())
         }
         EndpointCommands::List => {
@@ -520,21 +593,21 @@ async fn endpoint(path: &Path, cmd: EndpointCommands) -> Result<()> {
                 .endpoints
                 .iter()
                 .find(|e| e.name == name)
-                .context("endpoint not found")?;
+                .with_context(|| format!("Endpoint `{name}` was not found. Fix: run `the-witness endpoint list`, copy the endpoint name exactly, then retry."))?;
             crate::endpoints::health::test_endpoint(ep).await?;
-            println!("Endpoint {name} reachable.");
+            println!("Endpoint `{name}` is reachable. The next step is to send a test chat completion through its local proxy URL.");
             Ok(())
         }
         EndpointCommands::Disable { name } => {
             manager::set_enabled(&mut cfg, &name, false)?;
             cfg.save(path)?;
-            println!("Endpoint {name} disabled.");
+            println!("Endpoint `{name}` is disabled. Existing config is kept, but new traffic will not be watched until you enable it again.");
             Ok(())
         }
         EndpointCommands::Enable { name } => {
             manager::set_enabled(&mut cfg, &name, true)?;
             cfg.save(path)?;
-            println!("Endpoint {name} enabled.");
+            println!("Endpoint `{name}` is enabled. Send traffic to its local proxy URL to start verification.");
             Ok(())
         }
     }
