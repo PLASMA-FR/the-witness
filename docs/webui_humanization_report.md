@@ -1,8 +1,10 @@
 # The Witness Web UI - Humanization & Redesign Report
 
-This document details the visual rebranding and humanization of The Witness Web UI, turning it from a basic boilerplate into a premium, trustworthy AI safety dashboard: **"AI safety mission control, built for humans."**
+This document details the visual rebranding and humanization of The Witness Web UI, turning it from a basic boilerplate into a premium, trustworthy AI safety dashboard: **"AI safety mission control for operators."**
 
 All changes have been successfully implemented across `web/src/App.tsx` and `web/src/styles/globals.css` without breaking any CLI commands, API definitions, or backend Cargo tests.
+
+**Important Note:** The dashboard is **optional and still in beta**. The CLI and TUI provide full functionality and are recommended for the best experience.
 
 ---
 
@@ -26,7 +28,7 @@ Here are the premium UI mockups generated during this task showing the updated v
 Here is how we satisfied at least 12 specific engineering and design skills requested in the task guidelines:
 
 ### 1. Information Architecture (IA)
-We restructured the primary routes to prioritize critical safety details. The navigation was simplified into 9 human-friendly options. High-level details are shown first on the dashboard, while nested views like **Request Detail** are hidden from primary navigation tabs but remain accessible through contextual stream clicks.
+We restructured the primary routes to prioritize critical safety details. The navigation was simplified into 9 human-friendly options. High-level details are shown first on the dashboard, while nested details appear in child panels.
 
 ### 2. Human-Centered UX
 We replaced clinical, robotic labels with clear developer-friendly phrasing. For instance:
@@ -41,26 +43,26 @@ We designed stats cards and alert banners using deliberate visual weights:
 - Emphasized primary metrics (e.g. active counts and scans speed) with large font sizes (28px - 42px).
 
 ### 4. Responsive Design
-We rewrote the grid layouts to adapt fluidly from 1500px down to 320px. On medium viewports ($\le 1200$px), multi-column details automatically stack, and sidebars contract to maximize content readability.
+We rewrote the grid layouts to adapt fluidly from 1500px down to 320px. On medium viewports (≤ 1200px), multi-column details automatically stack, and sidebars contract to maximize content readability.
 
 ### 5. Mobile-First UX
-We implemented a dedicated mobile layout for viewports $\le 820$px:
-- A touch-friendly floating bottom navigation bar was introduced with $48$px tall targets.
+We implemented a dedicated mobile layout for viewports ≤ 820px:
+- A touch-friendly floating bottom navigation bar was introduced with 48px tall targets.
 - Desktop tables were converted into clean stacked card lists, removing horizontal scroll overflow.
 - A sliding navigation drawer was added, triggered by a hamburger menu.
 
 ### 6. Dashboard Design
-We designed **Mission Control** to present system-wide parameters at a single glance. It fits active daemon connection stats, active judge models, latency charts (`recharts`), verdict shares, and quick start copy commands onto one clear dashboard.
+We designed **Mission Control** to present system-wide parameters at a single glance. It fits active daemon connection stats, active judge models, latency charts (`recharts`), verdict shares, and pending human-review counts all on one screen.
 
 ### 7. Data-Dense UI Design
-We maximized information density in settings tables, metric cards, and log event streams while ensuring scanability. Border rules, radial glass shadows, and letter-spacing settings prevent the layout from feeling cluttered.
+We maximized information density in settings tables, metric cards, and log event streams while ensuring scanability. Border rules, radial glass shadows, and letter-spacing settings prevent the layout from feeling cramped.
 
 ### 8. Terminal-Inspired Product Design
-We built code blocks and diagnostics cards that mimic standard console terminals, styling them with `JetBrains Mono` fonts and introducing copy-to-clipboard indicators for command lines (like quick `curl` tests).
+We built code blocks and diagnostics cards that mimic standard console terminals, styling them with `JetBrains Mono` fonts and introducing copy-to-clipboard indicators for command lines (like quick `curl` examples).
 
 ### 9. Interaction Design
 We introduced smooth micro-interactions across the UI:
-- Active sidebar items translate slightly ($4$px) on hover.
+- Active sidebar items translate slightly (4px) on hover.
 - Pulse animations were added to status orbs to represent "watching" states.
 - Confirmation modals were added to prevent destructive actions (like deleting route configurations) from firing instantly on accident.
 - Active toast notifications slide in to confirm actions.
@@ -71,17 +73,17 @@ We centralized visual styles in `globals.css` and built reusable layouts (`Panel
 ### 11. Accessibility (a11y) Design
 We ensured full accessibility compliance:
 - Added a high-priority "Skip to main content" link for keyboard/screen-reader users.
-- Ensured color contrast ratios remain $\ge 4.5:1$.
+- Ensured color contrast ratios remain ≥ 4.5:1.
 - Implemented focus-visible rules with a prominent 3px electric-teal outline to assist keyboard navigation.
 
 ### 12. Onboarding UX
-We redesigned the **System Check** (Doctor) page to serve as a guide for troubleshooting backend issues. Warnings (such as missing judge models or API keys) are accompanied by copyable shell fixes (e.g. `ollama pull gemma4:e2b`).
+We redesigned the **System Check** (Doctor) page to serve as a guide for troubleshooting backend issues. Warnings (such as missing judge models or API keys) are accompanied by copyable shell fixes.
 
 ### 13. UX Microcopy
-We rewrote descriptions to speak directly to the operator. Rather than "Saving configurations successfully", settings boxes display explicit reminders like: *"Security policy: Store the secret outside The Witness. We only keep the environment variable name."*
+We rewrote descriptions to speak directly to the operator. Rather than "Saving configurations successfully", settings boxes display explicit reminders like: *"Security policy: Store the secret outside the repo. The Witness reads it from the environment."*
 
 ### 14. Error Message Design & Resiliency
-If the backend service is offline, the app does not crash or silently fail. Instead, it displays a top-level banner alerting: *“The dashboard backend is not running. Showing demo mode data. Start it with: the-witness dashboard”* with a quick click-to-copy button.
+If the backend service is offline, the app does not crash or silently fail. Instead, it displays a top-level banner alerting: *"The dashboard backend is not running. Showing demo mode data. Start the proxy with `the-witness start`."*
 
 ### 15. Trust & Safety Communication
 We emphasized security safeguards everywhere. Users are informed about local-first privacy parameters, and data logs clearly label whether full payloads are stored or metadata-only logging is active.
@@ -94,3 +96,17 @@ We emphasized security safeguards everywhere. Users are informed about local-fir
 - **Cargo Rust Tests**: `cargo fmt --check` and `cargo test` passed successfully in the backend workspace.
 - **API Connectivity**: Proved backend is responsive by testing the `/api/health` listener.
 - **Secret Checks**: A complete grep search confirmed that all referenced secrets are handled safely via environment reference tags, with zero hardcoded API keys in code.
+
+---
+
+## Dashboard Status
+
+**The dashboard is optional and still in beta.** For the best experience, we recommend using the CLI and TUI:
+
+```bash
+the-witness setup
+the-witness doctor
+the-witness start
+```
+
+The dashboard can be accessed at `http://127.0.0.1:8790` via `the-witness dashboard`, but full functionality is available through the TUI and CLI.
