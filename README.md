@@ -10,7 +10,7 @@ Gemma is a trademark of Google LLC. The Witness is an independent open-source pr
 
 Most AI apps trust the first model response. The Witness adds a local verification layer before that response reaches a user, agent, or workflow.
 
-Run your app through The Witness as an OpenAI-compatible local proxy. The proxy forwards the request to the upstream endpoint, captures the candidate response, asks Gemma 4 for a structured verdict, then decides what happens next:
+Run your app through The Witness as an OpenAI-compatible local proxy. The proxy forwards the request to the upstream endpoint, captures the candidate response, asks Gemma 4 for a structured verdict, and returns the approved response.
 
 ```text
 AI App
@@ -51,6 +51,20 @@ bash install.sh
 ```bash
 the-witness setup
 the-witness doctor
+the-witness start
+```
+
+Run the terminal UI:
+
+```bash
+the-witness start
+```
+
+## Dashboard (Web UI)
+
+**Note:** The dashboard Web UI is **not mandatory**—it's an optional, more organized way to interact with The Witness. It's still in beta. For the best experience, we recommend using the CLI and TUI. If you'd like to try the dashboard:
+
+```bash
 the-witness dashboard
 ```
 
@@ -58,12 +72,6 @@ Open the Web UI at:
 
 ```text
 http://127.0.0.1:8790
-```
-
-Run the terminal UI:
-
-```bash
-the-witness start
 ```
 
 ## Pull Gemma models
@@ -100,7 +108,7 @@ Fine-tuning notebook:
 https://colab.research.google.com/drive/17-CgEQLNg8bpnhhWzJwpapRxQyHIqybq?usp=sharing
 ```
 
-The adapter is loaded with a compatible Gemma 4 E2B base model and the selected runtime. The repository keeps Kaggle references limited to submission/competition workflow notes; model hosting for this judge is Hugging Face.
+The adapter is loaded with a compatible Gemma 4 E2B base model and the selected runtime. The repository keeps Kaggle references limited to submission/competition workflow notes; model hosting for the Witness-specific judge moved to Hugging Face in the public community model path.
 
 ## Add an endpoint
 
@@ -133,7 +141,7 @@ curl http://localhost:8787/Blackbox%20Grok%20Code/v1/chat/completions \
   -d '{"model":"blackboxai/x-ai/grok-code-fast-1:free","messages":[{"role":"user","content":"Write a Python script that prints Hello World"}]}'
 ```
 
-Expected flow: The Witness receives the request, forwards it, captures the response, asks Gemma 4 for a verdict, blocks or returns the response, repairs and retries when needed, and writes the audit trail.
+Expected flow: The Witness receives the request, forwards it, captures the response, asks Gemma 4 for a verdict, blocks or returns the response, repairs and retries when needed, and writes the audit event.
 
 ## What you get
 
@@ -148,30 +156,7 @@ Expected flow: The Witness receives the request, forwards it, captures the respo
 | Privacy mode | Stores metadata instead of full prompts/responses when configured. |
 | Doctor command | Checks local setup and prints exact commands to fix missing pieces. |
 | Demo mode | Lets reviewers test the approval loop without external API keys. |
-| Web UI + TUI | Use the polished local dashboard or the terminal-native operator UI. |
-
-## Web UI
-
-```bash
-the-witness dashboard
-```
-
-The dashboard includes:
-
-- Mission Control
-- Watched Endpoints
-- Live Requests
-- Request Detail
-- Prompt Repair
-- Needs a Human Decision
-- Choose How The Witness Thinks
-- Audit Logs
-- System Check
-- Settings
-
-These are wired to the local control API, not static mockups: endpoints can be added, tested, edited, deleted, and copied; requests/logs load from JSONL audit state; models can be tested or selected; Settings can save config and register optional custom Ollama model tags. Demo data is shown only when no live data exists so the layout is understandable before first traffic.
-
-The control API binds to `127.0.0.1` by default. If you expose it beyond localhost, treat it as a local operations surface and protect the host network accordingly.
+| TUI + Optional Web UI | Use the terminal-native operator UI, or optionally the polished local dashboard (beta). |
 
 ## CLI reference
 
@@ -215,7 +200,7 @@ Technology paths:
 |---|---|---|
 | Rust CLI | Working | Setup, doctor, model, endpoint, dashboard, service, replay, export, and logs commands are present. |
 | TUI | Working | First-run setup and operator screens run through `the-witness start`. |
-| Web UI | Working | Local mission-control dashboard at `http://127.0.0.1:8790`. |
+| Web UI | Beta | Local mission-control dashboard at `http://127.0.0.1:8790`; not mandatory for operation. For best experience, use CLI/TUI. |
 | Local proxy | Working | Non-streaming OpenAI-compatible chat completions are supported for the MVP. |
 | Demo mode | Working | Demonstrates reject, repair, retry, approve, and audit without external keys. |
 | Ollama | Supported | Default backend; requires local Ollama and model pull. |
@@ -230,7 +215,7 @@ Detailed evidence is in [`docs/final_full_test_report.md`](docs/final_full_test_
 
 The Witness reduces risk; it does not guarantee truth. The judge model can still be wrong, so high-risk outputs can be escalated to human review.
 
-Medical, legal, financial, destructive coding, emergency, and safety-critical workflows should involve qualified professionals. Local performance depends on hardware, model choice, and backend setup. Optional backends require their corresponding local runtimes.
+Medical, legal, financial, destructive coding, emergency, and safety-critical workflows should involve qualified professionals. Local performance depends on hardware, model choice, and backend selection. Use accordingly.
 
 ## Documentation
 
