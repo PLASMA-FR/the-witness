@@ -1,0 +1,72 @@
+name: Finalize and deploy the interactive demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.pages-bootstrap/**'
+      - '.github/workflows/bootstrap-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct the verified site source
+        run: |
+          cat .pages-bootstrap/payload.* | base64 --decode > /tmp/witness-site.tar.gz
+          echo '185605036f8810a4fcba1b6d5a0e8ea99ec7b3477a1d29761d1b6aa6dedcd37b  /tmp/witness-site.tar.gz' | sha256sum -c -
+          rm -rf site
+          tar -xzf /tmp/witness-site.tar.gz
+          test -f site/index.html
+          test -f site/styles.css
+          test -f site/app.js
+
+      - name: Persist clean website source
+        run: |
+          rm -rf .pages-bootstrap .site-bootstrap
+          rm -f .github/workflows/bootstrap-pages.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'Add interactive GitHub Pages project demo'
+            if ! git push; then
+              echo '::warning::The site will deploy, but the source cleanup commit could not be pushed.'
+            fi
+          fi
+
+      - name: Assemble gallery assets
+        run: |
+          mkdir -p site/assets
+          cp gallery/01_cover_the_witness.png site/assets/cover.png
+          cp gallery/02_architecture_diagram.png site/assets/architecture.png
+          cp gallery/04_tui_dashboard.png site/assets/tui-dashboard.png
+          cp gallery/logo_witness_icon.png site/assets/favicon.png
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
