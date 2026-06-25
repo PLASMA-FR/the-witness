@@ -43,6 +43,15 @@ impl JudgeVerdict {
         if !(0.0..=1.0).contains(&self.confidence) {
             bail!("confidence must be 0.0..1.0")
         }
+        for (label, score) in [
+            ("safety_score", self.safety_score),
+            ("usefulness_score", self.usefulness_score),
+            ("prompt_alignment_score", self.prompt_alignment_score),
+        ] {
+            if score > 100 {
+                bail!("{label} must be 0..100")
+            }
+        }
         Ok(())
     }
     pub fn approved() -> Self {
@@ -144,6 +153,7 @@ fn normalize_verdict_value(value: &mut Value) {
     normalize_score(obj.get_mut("safety_score"));
     normalize_score(obj.get_mut("usefulness_score"));
     normalize_score(obj.get_mut("prompt_alignment_score"));
+    normalize_verdict(obj.get_mut("verdict"));
     normalize_risk(obj.get_mut("correctness_risk"));
     for key in [
         "rejection_reason",
@@ -156,6 +166,22 @@ fn normalize_verdict_value(value: &mut Value) {
     }
     if obj.get("requires_human_review").is_none_or(Value::is_null) {
         obj.insert("requires_human_review".into(), Value::Bool(false));
+    }
+}
+
+fn normalize_verdict(v: Option<&mut Value>) {
+    if let Some(Value::String(s)) = v {
+        let normalized = match s.trim().to_ascii_uppercase().as_str() {
+            "APPROVED" | "APPROVE" | "PASS" | "PASSED" => "APPROVED",
+            "DISAPPROVED" | "DISAPPROVE" | "REJECTED" | "REJECT" | "FAIL" | "FAILED" => {
+                "DISAPPROVED"
+            }
+            "NEEDS_HUMAN_REVIEW" | "NEEDS HUMAN REVIEW" | "HUMAN_REVIEW" | "REVIEW" => {
+                "NEEDS_HUMAN_REVIEW"
+            }
+            _ => return,
+        };
+        *s = normalized.into();
     }
 }
 

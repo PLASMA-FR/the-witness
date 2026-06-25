@@ -14,11 +14,7 @@ pub fn extract_prompt_parts(body: &serde_json::Value) -> PromptParts {
     if let Some(messages) = body.get("messages").and_then(|v| v.as_array()) {
         for msg in messages {
             let role = msg.get("role").and_then(|v| v.as_str()).unwrap_or_default();
-            let content = msg
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_string();
+            let content = msg.get("content").map(text_content).unwrap_or_default();
             match role {
                 "system" => system_prompt = Some(content),
                 "user" => user_prompt = Some(content),
@@ -40,4 +36,22 @@ pub fn append_hidden_repair(
         messages.push(serde_json::json!({"role":"user","content":repaired_prompt}));
     }
     body
+}
+
+fn text_content(value: &serde_json::Value) -> String {
+    if let Some(text) = value.as_str() {
+        return text.to_string();
+    }
+    if let Some(parts) = value.as_array() {
+        return parts
+            .iter()
+            .filter_map(|part| {
+                part.get("text")
+                    .and_then(|text| text.as_str())
+                    .or_else(|| part.as_str())
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
+    String::new()
 }

@@ -1,12 +1,14 @@
 use crate::config::EndpointConfig;
 use anyhow::Result;
+use std::time::Duration;
 pub async fn test_endpoint(ep: &EndpointConfig) -> Result<()> {
     let base = ep.upstream_url.trim_end_matches('/');
     let candidates = [format!("{base}/models"), format!("{base}/v1/models")];
     let client = reqwest::Client::new();
+    let timeout = Duration::from_secs(ep.timeout_seconds.max(1));
     let mut last = None;
     for url in candidates {
-        let mut req = client.get(&url);
+        let mut req = client.get(&url).timeout(timeout);
         if let Some(auth) = ep.resolved_auth_header()? {
             req = req.header("Authorization", auth);
         }

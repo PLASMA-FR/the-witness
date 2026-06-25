@@ -31,10 +31,13 @@ pub fn redact_secret(s: &str) -> String {
     if s.is_empty() {
         return String::new();
     }
-    if s.len() <= 6 {
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() <= 6 {
         return "<redacted>".into();
     }
-    format!("{}…{}", &s[..4], &s[s.len() - 4..])
+    let prefix: String = chars.iter().take(4).collect();
+    let suffix: String = chars.iter().skip(chars.len().saturating_sub(4)).collect();
+    format!("{prefix}…{suffix}")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

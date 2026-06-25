@@ -16,7 +16,11 @@ use axum::{
     routing::post,
     Router,
 };
-use std::{net::SocketAddr, sync::Arc, time::Instant};
+use std::{
+    net::SocketAddr,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 #[derive(Clone)]
 pub struct ProxyState {
     pub config: WitnessConfig,
@@ -61,11 +65,12 @@ async fn process(
         .ok_or_else(|| anyhow!("unknown or disabled endpoint {endpoint_name}"))?;
     let original: serde_json::Value = serde_json::from_slice(&body)?;
     let parts = extract_prompt_parts(&original);
+    let privacy_mode = state.config.defaults.privacy_mode;
     let mut event = RequestEvent::new(
         endpoint.name.clone(),
         endpoint.profile.clone(),
-        if state.config.defaults.privacy_mode {
-            serde_json::json!({"redacted":true})
+        if privacy_mode {
+            redacted_audit_value("request_body")
         } else {
             original.clone()
         },
@@ -78,7 +83,8 @@ async fn process(
         let started = Instant::now();
         event.status = RequestStatus::Forwarded;
         let candidate = forward(&state.client, &endpoint, &path, &headers, &current).await?;
-        event.candidate_response = Some(candidate.clone());
+        event.candidate_response =
+            Some(audit_value(&candidate, privacy_mode, "candidate_response"));
         event.status = RequestStatus::Judging;
         let judge = state
             .judge
@@ -94,7 +100,8 @@ async fn process(
         match judge.verdict.verdict {
             VerdictKind::APPROVED => {
                 event.status = RequestStatus::Approved;
-                event.final_response = Some(candidate.clone());
+                event.final_response =
+                    Some(audit_value(&candidate, privacy_mode, "final_response"));
                 state.logger.append(&event).await.ok();
                 return Ok((StatusCode::OK, axum::Json(candidate)));
             }
@@ -134,7 +141,8 @@ async fn forward(
     body: &serde_json::Value,
 ) -> Result<serde_json::Value> {
     let url = upstream_url_for(&endpoint.upstream_url, path);
-    let mut req = client.post(url).json(body);
+    let timeout = Duration::from_secs(endpoint.timeout_seconds.max(1));
+    let mut req = client.post(url).timeout(timeout).json(body);
     if let Some(auth) = endpoint.resolved_auth_header()? {
         req = req.header("Authorization", auth);
     } else if let Some(h) = headers.get("authorization").and_then(|h| h.to_str().ok()) {
@@ -157,6 +165,18 @@ fn upstream_url_for(upstream_url: &str, path: &str) -> String {
     } else {
         format!("{upstream}/{downstream_path}")
     }
+}
+
+fn audit_value(value: &serde_json::Value, privacy_mode: bool, kind: &str) -> serde_json::Value {
+    if privacy_mode {
+        redacted_audit_value(kind)
+    } else {
+        value.clone()
+    }
+}
+
+fn redacted_audit_value(kind: &str) -> serde_json::Value {
+    serde_json::json!({"redacted": true, "kind": kind})
 }
 
 fn fallback(

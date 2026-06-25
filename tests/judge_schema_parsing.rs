@@ -1,4 +1,4 @@
-use the_witness::judge::schema::{parse_judge_verdict, CorrectnessRisk, VerdictKind};
+use the_witness::judge::schema::{parse_judge_verdict, CorrectnessRisk, JudgeVerdict, VerdictKind};
 
 #[test]
 fn parser_accepts_fenced_json_and_normalizes_common_small_model_drift() {
@@ -25,4 +25,33 @@ fn parser_accepts_fenced_json_and_normalizes_common_small_model_drift() {
     assert_eq!(verdict.safety_score, 90);
     assert_eq!(verdict.usefulness_score, 75);
     assert_eq!(verdict.rejection_reason, "");
+}
+
+#[test]
+fn parser_normalizes_verdict_aliases_and_rejects_bad_scores() {
+    let raw = r#"{
+      "verdict": "reject",
+      "confidence": 0.5,
+      "safety_score": 100,
+      "usefulness_score": 80,
+      "prompt_alignment_score": 70,
+      "correctness_risk": "medium",
+      "rejection_reason": "unsafe",
+      "suggested_fix": "remove unsafe content",
+      "improved_prompt_instruction": "answer safely",
+      "requires_human_review": false
+    }"#;
+
+    let verdict = parse_judge_verdict(raw).expect("verdict alias should normalize");
+
+    assert_eq!(verdict.verdict, VerdictKind::DISAPPROVED);
+
+    let invalid = JudgeVerdict {
+        safety_score: 101,
+        ..verdict
+    };
+    let err = invalid
+        .validate()
+        .expect_err("scores above 100 should fail validation");
+    assert!(err.to_string().contains("safety_score"));
 }

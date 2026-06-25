@@ -37,6 +37,7 @@ fn judge_verdict_accepts_required_schema() {
 #[test]
 fn secret_display_is_redacted() {
     assert_eq!(SecretString::new("sk-test-secret").redacted(), "sk-t…cret");
+    assert_eq!(SecretString::new("абвгдежзик").redacted(), "абвг…жзик");
     assert!(format!("{:?}", SecretString::new("abc")).contains("<redacted>"));
 }
 
@@ -70,4 +71,25 @@ fn openai_prompt_extraction_finds_system_user_and_model() {
     assert_eq!(parts.model.as_deref(), Some("gpt-test"));
     assert_eq!(parts.system_prompt.as_deref(), Some("Be safe"));
     assert_eq!(parts.user_prompt.as_deref(), Some("Hello"));
+}
+
+#[test]
+fn openai_prompt_extraction_reads_structured_text_parts() {
+    let body = serde_json::json!({
+        "model":"gpt-test",
+        "messages":[
+            {"role":"user", "content":[
+                {"type":"text", "text":"First line"},
+                {"type":"image_url", "image_url":{"url":"https://example.invalid/image.png"}},
+                {"text":"Second line"}
+            ]}
+        ]
+    });
+
+    let parts = extract_prompt_parts(&body);
+
+    assert_eq!(
+        parts.user_prompt.as_deref(),
+        Some("First line\nSecond line")
+    );
 }

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     net::{IpAddr, SocketAddr},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -212,12 +212,14 @@ fn redacted_config(mut cfg: WitnessConfig) -> WitnessConfig {
     cfg
 }
 
-fn scrub_config_secret_markers(cfg: &mut WitnessConfig) {
+fn scrub_config_secret_markers(cfg: &mut WitnessConfig, previous: Option<&WitnessConfig>) {
     if cfg.gemma.auth_header.as_deref() == Some("[REDACTED]") {
-        cfg.gemma.auth_header = None;
+        cfg.gemma.auth_header = previous.and_then(|old| old.gemma.auth_header.clone());
     }
     for ep in &mut cfg.endpoints {
-        scrub_incoming_secret_markers(ep);
+        let previous_ep =
+            previous.and_then(|old| old.endpoints.iter().find(|old_ep| old_ep.name == ep.name));
+        scrub_incoming_secret_markers(ep, previous_ep);
     }
 }
 
@@ -275,7 +277,8 @@ async fn api_put_config(
     State(state): State<ControlState>,
     Json(mut cfg): Json<WitnessConfig>,
 ) -> Result<Json<WitnessConfig>, ApiError> {
-    scrub_config_secret_markers(&mut cfg);
+    let previous = state.config.read().await.clone();
+    scrub_config_secret_markers(&mut cfg, Some(&previous));
     cfg.save(&state.config_path)?;
     *state.config.write().await = cfg.clone();
     Ok(Json(redacted_config(cfg)))
@@ -354,8 +357,9 @@ async fn api_add_endpoint(
     State(state): State<ControlState>,
     Json(mut ep): Json<EndpointConfig>,
 ) -> Result<Json<Vec<EndpointConfig>>, ApiError> {
-    scrub_incoming_secret_markers(&mut ep);
     let mut cfg = state.config.write().await;
+    let previous = cfg.endpoints.iter().find(|old_ep| old_ep.name == ep.name);
+    scrub_incoming_secret_markers(&mut ep, previous);
     manager::add_endpoint(&mut cfg, ep)?;
     cfg.save(&state.config_path)?;
     Ok(Json(redacted_config(cfg.clone()).endpoints))
@@ -375,13 +379,14 @@ async fn api_update_endpoint(
     AxumPath(id): AxumPath<String>,
     Json(mut ep): Json<EndpointConfig>,
 ) -> Result<Json<EndpointConfig>, ApiError> {
-    scrub_incoming_secret_markers(&mut ep);
     let mut cfg = state.config.write().await;
     let slot = cfg
         .endpoints
         .iter_mut()
         .find(|e| endpoint_id(&e.name) == id || e.name == id)
         .ok_or_else(|| ApiError::not_found("endpoint not found"))?;
+    let previous = slot.clone();
+    scrub_incoming_secret_markers(&mut ep, Some(&previous));
     *slot = ep.clone();
     cfg.save(&state.config_path)?;
     Ok(Json(redact_endpoint(ep)))
@@ -483,13 +488,15 @@ fn endpoint_id(name: &str) -> String {
     name.to_lowercase().replace(' ', "-").replace('%', "")
 }
 
-fn scrub_incoming_secret_markers(ep: &mut EndpointConfig) {
+fn scrub_incoming_secret_markers(ep: &mut EndpointConfig, previous: Option<&EndpointConfig>) {
     if ep.auth_header.as_deref() == Some("[REDACTED]") {
-        ep.auth_header = None;
+        ep.auth_header = previous.and_then(|old| old.auth_header.clone());
     }
     if let Some(EndpointAuth { value, .. }) = &mut ep.auth {
         if value.as_deref() == Some("[REDACTED]") {
-            *value = None;
+            *value = previous
+                .and_then(|old| old.auth.as_ref())
+                .and_then(|old_auth| old_auth.value.clone());
         }
     }
 }
@@ -507,8 +514,9 @@ async fn index() -> Html<String> {
     Html(static_index())
 }
 async fn static_asset(AxumPath(path): AxumPath<String>) -> Response {
-    let path = path.trim_start_matches('/');
-    let dist = Path::new("web/dist").join(path);
+    let Some(dist) = dist_asset_path(&path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
     if dist.is_file() {
         let mime = match dist.extension().and_then(|s| s.to_str()).unwrap_or("") {
             "js" => "text/javascript; charset=utf-8",
@@ -523,6 +531,18 @@ async fn static_asset(AxumPath(path): AxumPath<String>) -> Response {
         }
     }
     Html(static_index()).into_response()
+}
+
+fn dist_asset_path(path: &str) -> Option<PathBuf> {
+    let mut dist = PathBuf::from("web/dist");
+    for component in Path::new(path.trim_start_matches('/')).components() {
+        match component {
+            Component::Normal(part) => dist.push(part),
+            Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    Some(dist)
 }
 fn static_index() -> String {
     let dist = Path::new("web/dist/index.html");
@@ -577,5 +597,79 @@ impl IntoResponse for ApiError {
             Json(json!({"ok": false, "error": self.message})),
         )
             .into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn redacted_config_roundtrip_preserves_existing_secrets() {
+        let mut previous = WitnessConfig::default();
+        previous.gemma.auth_header = Some("Bearer judge-secret".into());
+
+        let mut endpoint = WitnessConfig::blackbox_endpoint();
+        endpoint.auth_header = Some("Bearer endpoint-secret".into());
+        endpoint.auth = Some(EndpointAuth {
+            kind: "static".into(),
+            env: None,
+            value: Some("static-secret".into()),
+        });
+        previous.endpoints.push(endpoint);
+
+        let mut incoming = redacted_config(previous.clone());
+        scrub_config_secret_markers(&mut incoming, Some(&previous));
+
+        assert_eq!(
+            incoming.gemma.auth_header.as_deref(),
+            Some("Bearer judge-secret")
+        );
+        assert_eq!(
+            incoming.endpoints[0].auth_header.as_deref(),
+            Some("Bearer endpoint-secret")
+        );
+        assert_eq!(
+            incoming.endpoints[0]
+                .auth
+                .as_ref()
+                .and_then(|auth| auth.value.as_deref()),
+            Some("static-secret")
+        );
+    }
+
+    #[test]
+    fn redacted_secret_markers_without_previous_values_are_cleared() {
+        let mut cfg = WitnessConfig::default();
+        cfg.gemma.auth_header = Some("[REDACTED]".into());
+        let mut endpoint = WitnessConfig::blackbox_endpoint();
+        endpoint.auth_header = Some("[REDACTED]".into());
+        endpoint.auth = Some(EndpointAuth {
+            kind: "static".into(),
+            env: None,
+            value: Some("[REDACTED]".into()),
+        });
+        cfg.endpoints.push(endpoint);
+
+        scrub_config_secret_markers(&mut cfg, None);
+
+        assert!(cfg.gemma.auth_header.is_none());
+        assert!(cfg.endpoints[0].auth_header.is_none());
+        assert!(cfg.endpoints[0]
+            .auth
+            .as_ref()
+            .and_then(|auth| auth.value.as_ref())
+            .is_none());
+    }
+
+    #[test]
+    fn dist_asset_path_rejects_traversal_components() {
+        assert_eq!(
+            dist_asset_path("assets/index.js").as_deref(),
+            Some(Path::new("web/dist/assets/index.js"))
+        );
+        assert!(dist_asset_path("../Cargo.toml").is_none());
+        assert!(dist_asset_path("assets/../secret.txt").is_none());
+        assert!(dist_asset_path("/assets/./index.css").is_some());
     }
 }
