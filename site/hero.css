@@ -1,0 +1,32 @@
+.hero { padding-top: 90px; }
+.hero-grid { display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 70px; align-items: center; }
+.eyebrow { margin: 0 0 15px; color: #933a2c; font: 800 12px/1.2 var(--mono); letter-spacing: 0.12em; }
+.hero h1, .heading h2, .proof h2, .product h2, .limits h2, .install h2, .cta h2 { font-family: var(--serif); letter-spacing: -0.045em; line-height: 0.96; }
+.hero h1 { margin: 0 0 22px; font-size: clamp(52px, 6.3vw, 96px); }
+.lead { max-width: 680px; color: var(--muted); font-size: 19px; }
+.actions { display: flex; gap: 12px; margin: 28px 0; }
+.btn { padding: 12px 16px; border: 1px solid; text-decoration: none; font-weight: 800; }
+.btn:hover { box-shadow: 4px 4px 0 rgba(0,0,0,0.13); transform: translate(-2px,-2px); }
+.dark { color: #fff; background: var(--ink); }
+.disclosure { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.disclosure i { flex: none; width: 10px; height: 10px; margin-top: 5px; border: 2px solid var(--rust); border-radius: 50%; }
+.route { position: relative; border: 1px solid; background: var(--cream); box-shadow: 9px 9px 0 rgba(0,0,0,0.13); transform: rotate(0.6deg); }
+.note { position: absolute; right: 12px; top: -26px; padding: 8px 10px; border: 1px solid; background: #fff6cf; font: 700 11px var(--mono); transform: rotate(3deg); }
+.route-head, .release { display: flex; justify-content: space-between; gap: 15px; padding: 14px 16px; font: 700 11px var(--mono); }
+.route-head { border-bottom: 1px solid; }
+.route-head em { color: var(--green); font-style: normal; }
+.route ol { margin: 0; padding: 0; list-style: none; }
+.route li { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; min-height: 86px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.route li b, .route li span { display: block; }
+.route li b { font-family: var(--serif); font-size: 18px; }
+.route li span { color: var(--muted); font-size: 13px; }
+.route li small { font: 700 11px var(--mono); }
+.route .focus { color: #fff; background: var(--green); }
+.route .focus span { color: rgba(255,255,255,0.87); }
+.release { color: #fff; background: var(--ink); }
+.release small { color: rgba(255,255,255,0.53); }
+.release b { font-family: var(--serif); }
+.status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 15px; margin-top: 70px; padding: 18px 0; border-block: 1px solid; font: 700 12px var(--mono); }
+.status span { color: var(--green); }
+.status .beta { color: #a56e18; }
+.status .later { color: var(--muted); }
