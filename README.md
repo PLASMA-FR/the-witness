@@ -6,6 +6,8 @@ The Witness watches AI endpoints, verifies responses with Gemma 4, blocks bad ou
 
 Gemma is a trademark of Google LLC. The Witness is an independent open-source project.
 
+This project is not affiliated with, endorsed by, or connected to WITNESS, the international nonprofit human-rights organization. “The Witness” is an independently developed AI-output reliability and auditing tool.
+
 ## Why it exists
 
 Most AI apps trust the first model response. The Witness adds a local verification layer before that response reaches a user, agent, or workflow.
